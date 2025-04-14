@@ -10679,13 +10679,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 011d0f51fd4ad48c7b0d95e82eae25b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  radius: 2.5
-  foodPrefab: {fileID: 9180137372315387714, guid: 7a2b538a14f82481b8937ccc9e8ec743,
+  radius: 5
+  foodPrefab: {fileID: 9180137372315387714, guid: c27d6fda497c9a54e9eb1498511d8e75,
     type: 3}
   timeBetweenSpawns: 0.5
-  amount: 700
+  amount: 3
   maintainAmount: 0
-  blobCount: 4
+  blobCount: 5
   seed: 115
 --- !u!4 &1694517056
 Transform:
