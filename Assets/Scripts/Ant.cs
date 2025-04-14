@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Ant : MonoBehaviour
 {
-	public enum State { SearchingForFood, ReturningHome }
+	public enum State { SearchingForFood, ReturningHome, Informed, Pulling, Lifting }
 
 	public AntSettings settings;
 	public Transform head;
@@ -109,7 +109,11 @@ public class Ant : MonoBehaviour
 
 
 	void HandleMovement()
-	{
+	{	
+		if(currentState == State.Informed)
+		{
+			return;
+		}
 		Vector2 steerForce = randomSteerForce + pheromoneSteerForce + obstacleAvoidForce;
 
 		if (turningAround)
@@ -239,7 +243,10 @@ public class Ant : MonoBehaviour
 			if (numFoodInRadius > 0)
 			{
 				targetFood = foodColliders[Random.Range(0, numFoodInRadius)].transform;
-				targetFood.gameObject.layer = 0;
+				if (targetFood.CompareTag("SmallFood"))
+				{
+					targetFood.gameObject.layer = 0;
+				}
 			}
 		}
 
@@ -250,17 +257,25 @@ public class Ant : MonoBehaviour
 			Vector2 dirToFood = offsetToFood / dstToFood;
 			pheromoneSteerForce = dirToFood * settings.targetSteerStrength;
 			if (dstToFood < targetFood.transform.localScale.x * 1f)
-			{
-
-				collectedFood = targetFood.transform;
-				targetFood.position = head.position;
-				targetFood.SetParent(transform, true);
-				targetFood.gameObject.layer = 0;
-				currentState = State.ReturningHome;
-				nextDirUpdateTime = 0;
-				targetFood = null;
-				StartTurnAround();
-				leftFoodTime = Time.time;
+			{	
+				Debug.Log ("Collected food");
+				if (targetFood.CompareTag("SmallFood"))
+				{
+					collectedFood = targetFood.transform;
+					targetFood.position = head.position;
+					targetFood.SetParent(transform, true);
+					targetFood.gameObject.layer = 0;
+					currentState = State.ReturningHome;
+					nextDirUpdateTime = 0;
+					targetFood = null;
+					StartTurnAround();
+					leftFoodTime = Time.time;
+				} else {
+					targetFood.gameObject.layer = 0;
+					currentState = State.Informed;
+				}
+				
+				
 			}
 		}
 		else
