@@ -16,7 +16,17 @@ public class Ant : MonoBehaviour
 	public Transform antennaLeft;
 	public Transform antennaRight;
 	public Transform perceptionCentre;
+	public static Dictionary<string, int> nOfStates = new Dictionary<string, int>
+	{
+		{ "informed", 0 },
+		{ "puller", 0 },
+		{ "lifter", 0 }
+	};
 
+	public Vector2 pullingForce; // Direction of the pull force
+
+	public float Kc = 0.2f;              // From paper 
+	public float Find = 1f;			// From paper
 	State currentState;
 
 	Vector2 currentVelocity;
@@ -61,6 +71,7 @@ public class Ant : MonoBehaviour
 
 	float leftHomeTime;
 	float leftFoodTime;
+	float relativeAngleToTorus;
 
 	public void SetColony(AntColony colony)
 	{
@@ -120,21 +131,32 @@ public class Ant : MonoBehaviour
 		}
 
 		Vector2 torusPos = targetTorus.currentPosition;
-		//Vector2 DesiredPos = torusPos + hitRelativeToTorus;
-		Vector2 distance = currentPosition - torusPos;
-		Debug.Log("Distance to torus: " + distance.magnitude);
-		if(distance.magnitude > targetTorus.radius + 0.4f)
-		{
-			Debug.Log("Far from Torus");
-			torusFollowForce = -distance.normalized * settings.collisionAvoidSteerStrength;
-		} else {
-			Debug.Log("Close to Torus");
-			torusFollowForce = distance.normalized * settings.collisionAvoidSteerStrength;
-			// torusFollowForce = -distance.normalized * settings.pheromoneWeight;
-			//torusFollowForce = transform.up * settings.collisionAvoidSteerStrength;
-		}
-		//Vector2 offsetToTorus = (DesiredPos - currentPosition).normalized;
+		// //Vector2 DesiredPos = torusPos + hitRelativeToTorus;
+		// Vector2 distance = currentPosition - torusPos;
+		// Debug.Log("Distance to torus: " + distance.magnitude);
+		// if(distance.magnitude > targetTorus.radius + 0.4f)
+		// {
+		// 	Debug.Log("Far from Torus");
+		// 	torusFollowForce = -distance.normalized * settings.collisionAvoidSteerStrength;
+		// } else {
+		// 	Debug.Log("Close to Torus");
+		// 	torusFollowForce = distance.normalized * settings.collisionAvoidSteerStrength;
+		// 	// torusFollowForce = -distance.normalized * settings.pheromoneWeight;
+		// 	//torusFollowForce = transform.up * settings.collisionAvoidSteerStrength;
+		// }
+		// //Vector2 offsetToTorus = (DesiredPos - currentPosition).normalized;
 
+		// Just a try 
+		float radius = targetTorus.radius * 1.05f; // stay slightly outside collider
+
+		// Keep ant on torus perimeter
+		Vector2 offsetFromTorus = new Vector2(
+			Mathf.Cos(relativeAngleToTorus),
+			Mathf.Sin(relativeAngleToTorus)
+		) * radius;
+
+		currentPosition = torusPos + offsetFromTorus;
+		transform.position = currentPosition;
 	}
 
 
@@ -249,9 +271,9 @@ public class Ant : MonoBehaviour
 		if (distance.magnitude <= targetTorus.radius) {
 			Debug.Log("Pushing torus");
 			Vector2 offsetToTorus = distance.normalized;
-			Vector2 force = offsetToTorus * 0.5f; // Example force calculation
+			pullingForce = offsetToTorus * 0.5f; // Example force calculation
 			//Vector2 force =  -distance * settings.collisionAvoidSteerStrength ; // Example force calculation
-			targetTorus.ApplyForce(force);
+			targetTorus.ApplyForce(pullingForce);
 		}
 	}
 
@@ -335,11 +357,14 @@ public class Ant : MonoBehaviour
 					Debug.Log("Informed");
 					targetFood.gameObject.layer = 0;
 					currentState = State.Informed;
+					nOfStates["informed"]++;
 					currentVelocity = Vector2.zero;
 					hitRelativeToTorus = currentPosition - targetTorus.currentPosition;
+					float timeAsInformed = 10f;
+					Invoke("TransitionFromInformed", timeAsInformed);
+					Vector2 offset = currentPosition - targetTorus.currentPosition;
+					relativeAngleToTorus = Mathf.Atan2(offset.y, offset.x); // store this angle
 				}
-
-
 			}
 		}
 		else
@@ -349,7 +374,92 @@ public class Ant : MonoBehaviour
 
 	}
 
-	void HandlePheromonePlacement()
+	void TransitionFromInformed()
+	{
+		if (targetTorus == null || currentState != State.Informed)
+		{
+			return;
+		}
+
+		nOfStates["informed"]--;
+
+		float fuctor;
+
+		Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius, homeMask);
+		if (home)
+		{
+			float distanceAntHome = ((Vector2)home.transform.position - currentPosition).magnitude;
+			float distanceTorusHome = ((Vector2)home.transform.position - targetTorus.currentPosition).magnitude;
+			fuctor = distanceAntHome - distanceTorusHome;
+		}
+		else
+		{
+			fuctor = Random.Range(-1f, 1f);
+		}
+
+		if (fuctor < 0f)
+		{
+			// pull
+			currentState = State.Pulling;
+			nOfStates["puller"]++;
+		}
+		else
+		{
+			// lift
+			currentState = State.Lifting;
+			nOfStates["lifter"]++;
+		}
+
+		float rate = 10f;
+		Invoke("MaybeSwitchRoles", rate);
+	}
+
+void MaybeSwitchRoles()
+{
+	// unit vector
+	Vector2 pullDirection = pullingForce.normalized;
+
+	float alignment = Vector2.Dot(pullDirection, targetTorus.totForce.normalized); // dot product
+	float exponent = alignment / Find;
+
+	float switchRate;
+
+	if (currentState == State.Pulling)
+	{
+		switchRate = Kc * Mathf.Exp(-exponent); // Lifter → Puller
+	}
+	else if (currentState == State.Lifting && targetTorus.totForce.magnitude > 0.1f)
+	{
+		switchRate = Kc * Mathf.Exp(exponent); // Puller → Lifter
+	}
+	else if (currentState == State.Lifting)
+	{
+		switchRate = Kc * Mathf.Exp(-exponent); // Lifter → Puller
+	}
+	else return;
+
+	// Switch probabilistically
+	if (Random.value < switchRate * Time.deltaTime) // Normalize rate to per-frame
+	{
+		if (currentState == State.Pulling)
+		{
+			currentState = State.Lifting;
+			nOfStates["puller"]--;
+			nOfStates["lifter"]++;
+		}
+		else
+		{
+			currentState = State.Pulling;
+			nOfStates["puller"]++;
+			nOfStates["lifter"]--;
+		}
+	}
+
+	float rate = 10f;
+	Invoke("MaybeSwitchRoles", rate);
+}
+
+void HandlePheromonePlacement()
 	{
 		if (Vector2.Distance(transform.position, lastPheromonePos) > settings.dstBetweenMarkers)
 		{
