@@ -13,7 +13,6 @@ public class Ant : MonoBehaviour
 	public LayerMask torusMask;
 	public LayerMask collisionMask;
 
-
 	public Transform antennaLeft;
 	public Transform antennaRight;
 	public Transform perceptionCentre;
@@ -119,10 +118,22 @@ public class Ant : MonoBehaviour
 			torusFollowForce = Vector2.zero;
 			return;
 		}
-		Vector2 torusPos = targetFood.position;
-		Vector2 DesiredPos = torusPos + hitRelativeToTorus;
-		Vector2 offsetToTorus = (DesiredPos - currentPosition).normalized;
-		torusFollowForce = offsetToTorus * settings.pheromoneWeight;
+
+		Vector2 torusPos = targetTorus.currentPosition;
+		//Vector2 DesiredPos = torusPos + hitRelativeToTorus;
+		Vector2 distance = currentPosition - torusPos;
+		Debug.Log("Distance to torus: " + distance.magnitude);
+		if(distance.magnitude > targetTorus.radius + 0.4f)
+		{
+			Debug.Log("Far from Torus");
+			torusFollowForce = -distance.normalized * settings.collisionAvoidSteerStrength;
+		} else {
+			Debug.Log("Close to Torus");
+			torusFollowForce = distance.normalized * settings.collisionAvoidSteerStrength;
+			// torusFollowForce = -distance.normalized * settings.pheromoneWeight;
+			//torusFollowForce = transform.up * settings.collisionAvoidSteerStrength;
+		}
+		//Vector2 offsetToTorus = (DesiredPos - currentPosition).normalized;
 
 	}
 
@@ -165,8 +176,8 @@ public class Ant : MonoBehaviour
 	{
 		RaycastHit2D hitLeft = Physics2D.Raycast(antennaLeft.position, antennaLeft.right, settings.antennaDst, collisionMask);
 		RaycastHit2D hitRight = Physics2D.Raycast(antennaRight.position, antennaRight.right, settings.antennaDst, collisionMask);
-		//Debug.DrawRay (antennaLeft.position, antennaLeft.right * ((hitLeft) ? hitLeft.distance : settings.antennaDst), (hitLeft) ? Color.red : Color.green);
-		//Debug.DrawRay (antennaRight.position, antennaRight.right * ((hitRight) ? hitRight.distance : settings.antennaDst), (hitRight) ? Color.red : Color.green);
+		// Debug.DrawRay (antennaLeft.position, antennaLeft.right * ((hitLeft) ? hitLeft.distance : settings.antennaDst), (hitLeft) ? Color.red : Color.green);
+		// Debug.DrawRay (antennaRight.position, antennaRight.right * ((hitRight) ? hitRight.distance : settings.antennaDst), (hitRight) ? Color.red : Color.green);
 
 		if (Time.time > obstacleForceResetTime)
 		{
@@ -239,6 +250,7 @@ public class Ant : MonoBehaviour
 			Debug.Log("Pushing torus");
 			Vector2 offsetToTorus = distance.normalized;
 			Vector2 force = offsetToTorus * 0.5f; // Example force calculation
+			//Vector2 force =  -distance * settings.collisionAvoidSteerStrength ; // Example force calculation
 			targetTorus.ApplyForce(force);
 		}
 	}
@@ -324,7 +336,7 @@ public class Ant : MonoBehaviour
 					targetFood.gameObject.layer = 0;
 					currentState = State.Informed;
 					currentVelocity = Vector2.zero;
-					hitRelativeToTorus = targetFood.position - transform.position;
+					hitRelativeToTorus = currentPosition - targetTorus.currentPosition;
 				}
 
 
@@ -360,6 +372,11 @@ public class Ant : MonoBehaviour
 
 	void HandlePheromoneSteering()
 	{
+		if(currentState == State.Informed)
+		{
+			pheromoneSteerForce = Vector2.zero;
+			return;
+		}
 		if (Time.time > nextDirUpdateTime)
 		{
 			Vector2 leftSensorDir = (currentForwardDir + (Vector2)transform.up * settings.sensorDst).normalized;

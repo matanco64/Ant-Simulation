@@ -6,7 +6,7 @@ public class Torus : MonoBehaviour
 {
     public AntSettings settings;
     public Transform center;
-    public float radius = 5;
+    public float radius = 1f;
     public LayerMask homeMask;
     public LayerMask collisionMask;
 
@@ -48,7 +48,7 @@ public class Torus : MonoBehaviour
         HandleCollisions();
 
         // Update position
-        currentPosition += currentVelocity * Time.deltaTime;
+        currentPosition += currentVelocity.normalized  * Time.deltaTime;
         transform.position = currentPosition;
     }
 
