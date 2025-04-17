@@ -124,39 +124,62 @@ public class Ant : MonoBehaviour
 	}
 
 	void MoveRelativeToTorus() {
-		if(State.SearchingForFood == currentState || State.ReturningHome == currentState)
-		{	
-			torusFollowForce = Vector2.zero;
-			return;
+		// if(State.SearchingForFood == currentState || State.ReturningHome == currentState)
+		// {	
+		// 	torusFollowForce = Vector2.zero;
+		// 	return;
+		// }
+
+		// Vector2 torusPos = targetTorus.currentPosition;
+		// // //Vector2 DesiredPos = torusPos + hitRelativeToTorus;
+		// // Vector2 distance = currentPosition - torusPos;
+		// // Debug.Log("Distance to torus: " + distance.magnitude);
+		// // if(distance.magnitude > targetTorus.radius + 0.4f)
+		// // {
+		// // 	Debug.Log("Far from Torus");
+		// // 	torusFollowForce = -distance.normalized * settings.collisionAvoidSteerStrength;
+		// // } else {
+		// // 	Debug.Log("Close to Torus");
+		// // 	torusFollowForce = distance.normalized * settings.collisionAvoidSteerStrength;
+		// // 	// torusFollowForce = -distance.normalized * settings.pheromoneWeight;
+		// // 	//torusFollowForce = transform.up * settings.collisionAvoidSteerStrength;
+		// // }
+		// // //Vector2 offsetToTorus = (DesiredPos - currentPosition).normalized;
+
+		// // Just a try 
+		// float radius = targetTorus.radius * 1.05f; // stay slightly outside collider
+
+		// // Keep ant on torus perimeter
+		// Vector2 offsetFromTorus = new Vector2(
+		// 	Mathf.Cos(relativeAngleToTorus),
+		// 	Mathf.Sin(relativeAngleToTorus)
+		// ) * radius;
+
+		// currentPosition = torusPos + offsetFromTorus;
+		// transform.position = currentPosition;
+
+		void MoveRelativeToTorus()
+		{
+			if (currentState == State.SearchingForFood || currentState == State.ReturningHome || targetTorus == null)
+			{
+				torusFollowForce = Vector2.zero;
+				return;
+			}
+
+			Vector2 torusPos = targetTorus.currentPosition;
+			float radius = targetTorus.radius * 1.05f;
+
+			// Stay attached at fixed angle relative to torus center
+			Vector2 newOffset = new Vector2(
+				Mathf.Cos(relativeAngleToTorus),
+				Mathf.Sin(relativeAngleToTorus)
+			) * radius;
+
+			// Update position relative to new torus center
+			currentPosition = torusPos + newOffset;
+			transform.position = currentPosition;
 		}
 
-		Vector2 torusPos = targetTorus.currentPosition;
-		// //Vector2 DesiredPos = torusPos + hitRelativeToTorus;
-		// Vector2 distance = currentPosition - torusPos;
-		// Debug.Log("Distance to torus: " + distance.magnitude);
-		// if(distance.magnitude > targetTorus.radius + 0.4f)
-		// {
-		// 	Debug.Log("Far from Torus");
-		// 	torusFollowForce = -distance.normalized * settings.collisionAvoidSteerStrength;
-		// } else {
-		// 	Debug.Log("Close to Torus");
-		// 	torusFollowForce = distance.normalized * settings.collisionAvoidSteerStrength;
-		// 	// torusFollowForce = -distance.normalized * settings.pheromoneWeight;
-		// 	//torusFollowForce = transform.up * settings.collisionAvoidSteerStrength;
-		// }
-		// //Vector2 offsetToTorus = (DesiredPos - currentPosition).normalized;
-
-		// Just a try 
-		float radius = targetTorus.radius * 1.05f; // stay slightly outside collider
-
-		// Keep ant on torus perimeter
-		Vector2 offsetFromTorus = new Vector2(
-			Mathf.Cos(relativeAngleToTorus),
-			Mathf.Sin(relativeAngleToTorus)
-		) * radius;
-
-		currentPosition = torusPos + offsetFromTorus;
-		transform.position = currentPosition;
 	}
 
 
