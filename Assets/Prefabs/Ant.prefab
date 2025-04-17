@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 402160823636076157}
   - component: {fileID: 402160823636076130}
+  - component: {fileID: -5271800671505135540}
   m_Layer: 0
   m_Name: Ant
   m_TagString: Untagged
@@ -58,12 +59,31 @@ MonoBehaviour:
   homeMask:
     serializedVersion: 2
     m_Bits: 2048
+  torusMask:
+    serializedVersion: 2
+    m_Bits: 8192
   collisionMask:
     serializedVersion: 2
     m_Bits: 4096
   antennaLeft: {fileID: 7677950096222689600}
   antennaRight: {fileID: 975148653644356107}
   perceptionCentre: {fileID: 8820977480597983122}
+--- !u!70 &-5271800671505135540
+CapsuleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 402160823636076129}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: -0.0062625105, y: 0.0100179035}
+  m_Size: {x: 0.41396534, y: 0.2937512}
+  m_Direction: 1
 --- !u!1 &684692067367925888
 GameObject:
   m_ObjectHideFlags: 0

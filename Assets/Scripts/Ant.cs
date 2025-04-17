@@ -10,6 +10,7 @@ public class Ant : MonoBehaviour
 	public Transform head;
 	public LayerMask foodMask;
 	public LayerMask homeMask;
+	public LayerMask torusMask;
 	public LayerMask collisionMask;
 
 
@@ -37,6 +38,7 @@ public class Ant : MonoBehaviour
 
 	Vector2 randomSteerForce;
 	Vector2 pheromoneSteerForce;
+	Vector2 torusFollowForce;
 
 	// State
 	Vector2 currentForwardDir;
@@ -54,7 +56,9 @@ public class Ant : MonoBehaviour
 	float deathTime;
 	bool turningAround;
 	Vector2 turnAroundForce;
+	Vector2 hitRelativeToTorus;
 	float turnAroundEndTime;
+	Torus targetTorus;
 
 	float leftHomeTime;
 	float leftFoodTime;
@@ -104,17 +108,28 @@ public class Ant : MonoBehaviour
 		}
 
 		HandleCollisionSteering();
+		PushPullTorus();
+		MoveRelativeToTorus();
 		HandleMovement();
+	}
+
+	void MoveRelativeToTorus() {
+		if(State.SearchingForFood == currentState || State.ReturningHome == currentState)
+		{	
+			torusFollowForce = Vector2.zero;
+			return;
+		}
+		Vector2 torusPos = targetFood.position;
+		Vector2 DesiredPos = torusPos + hitRelativeToTorus;
+		Vector2 offsetToTorus = (DesiredPos - currentPosition).normalized;
+		torusFollowForce = offsetToTorus * settings.pheromoneWeight;
+
 	}
 
 
 	void HandleMovement()
-	{	
-		if(currentState == State.Informed)
-		{
-			return;
-		}
-		Vector2 steerForce = randomSteerForce + pheromoneSteerForce + obstacleAvoidForce;
+	{
+		Vector2 steerForce = randomSteerForce + pheromoneSteerForce + obstacleAvoidForce + torusFollowForce;
 
 		if (turningAround)
 		{
@@ -212,6 +227,23 @@ public class Ant : MonoBehaviour
 
 	}
 
+	void PushPullTorus()
+	{
+		if (State.SearchingForFood == currentState || State.ReturningHome == currentState && targetTorus == null)
+		{
+			return;
+
+		}
+		Vector2 distance = currentPosition - targetTorus.currentPosition;
+		if (distance.magnitude <= targetTorus.radius) {
+			Debug.Log("Pushing torus");
+			Vector2 offsetToTorus = distance.normalized;
+			Vector2 force = offsetToTorus * 0.5f; // Example force calculation
+			targetTorus.ApplyForce(force);
+		}
+	}
+
+
 	void StartTurnAround(Vector2 returnDir, float randomStrength = 0.2f)
 	{
 		turningAround = true;
@@ -239,10 +271,25 @@ public class Ant : MonoBehaviour
 
 		if (targetFood == null)
 		{
-			int numFoodInRadius = Physics2D.OverlapCircleNonAlloc(perceptionCentre.position, settings.perceptionRadius, foodColliders, foodMask);
+			// int numFoodInRadius = Physics2D.OverlapCircleNonAlloc(perceptionCentre.position, settings.perceptionRadius, foodColliders, foodMask);
+			// if (numFoodInRadius > 0)
+			// {
+			// 	targetFood = foodColliders[Random.Range(0, numFoodInRadius)].transform;
+			// 	if (targetFood.CompareTag("SmallFood"))
+			// 	{
+			// 		targetFood.gameObject.layer = 0;
+			// 	}
+			// }
+			int numFoodInRadius = Physics2D.OverlapCircleNonAlloc(perceptionCentre.position, settings.perceptionRadius, foodColliders, torusMask);
 			if (numFoodInRadius > 0)
 			{
-				targetFood = foodColliders[Random.Range(0, numFoodInRadius)].transform;
+				Collider2D foodCollider = foodColliders[Random.Range(0, numFoodInRadius)];
+				targetTorus = foodCollider.GetComponent<Torus>();
+				if (targetTorus != null)
+				{
+					Debug.Log("Found torus" + targetTorus.currentPosition);
+				}
+				targetFood = foodCollider.transform;
 				if (targetFood.CompareTag("SmallFood"))
 				{
 					targetFood.gameObject.layer = 0;
@@ -256,9 +303,9 @@ public class Ant : MonoBehaviour
 			float dstToFood = offsetToFood.magnitude;
 			Vector2 dirToFood = offsetToFood / dstToFood;
 			pheromoneSteerForce = dirToFood * settings.targetSteerStrength;
-			if (dstToFood < targetFood.transform.localScale.x * 1f)
-			{	
-				Debug.Log ("Collected food");
+			if (dstToFood < targetTorus.radius * 1f)
+			{
+				Debug.Log("Collected food");
 				if (targetFood.CompareTag("SmallFood"))
 				{
 					collectedFood = targetFood.transform;
@@ -270,12 +317,17 @@ public class Ant : MonoBehaviour
 					targetFood = null;
 					StartTurnAround();
 					leftFoodTime = Time.time;
-				} else {
+				}
+				else
+				{
+					Debug.Log("Informed");
 					targetFood.gameObject.layer = 0;
 					currentState = State.Informed;
+					currentVelocity = Vector2.zero;
+					hitRelativeToTorus = targetFood.position - transform.position;
 				}
-				
-				
+
+
 			}
 		}
 		else
@@ -319,12 +371,23 @@ public class Ant : MonoBehaviour
 			const int leftIndex = 1;
 			const int rightIndex = 2;
 			nextDirUpdateTime = Time.time + settings.timeBetweenDirUpdate;
-			// centre
-			sensors[centreIndex] = currentPosition + currentForwardDir * settings.sensorDst;
-			// left
-			sensors[leftIndex] = currentPosition + leftSensorDir * settings.sensorDst;
-			// right
-			sensors[rightIndex] = currentPosition + rightSensorDir * settings.sensorDst;
+			if (State.Informed == currentState)
+			{
+				// in this state, the ant is trying to bring the food back to the nest - handled in 
+				// Different code.
+				// no need for pheromone steering
+				return;
+			}
+			else
+			{
+				// centre
+				sensors[centreIndex] = currentPosition + currentForwardDir * settings.sensorDst;
+				// left
+				sensors[leftIndex] = currentPosition + leftSensorDir * settings.sensorDst;
+				// right
+				sensors[rightIndex] = currentPosition + rightSensorDir * settings.sensorDst;
+			}
+
 
 			for (int i = 0; i < 3; i++)
 			{
@@ -369,7 +432,12 @@ public class Ant : MonoBehaviour
 	}
 
 	void HandleRandomSteering()
-	{
+	{	
+		if(currentState == State.Informed)
+		{
+			randomSteerForce = Vector2.zero;
+			return;
+		}
 		if (targetFood != null)
 		{
 			randomSteerForce = Vector2.zero;

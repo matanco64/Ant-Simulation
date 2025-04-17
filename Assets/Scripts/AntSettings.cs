@@ -33,4 +33,7 @@ public class AntSettings : ScriptableObject
 	[Header("Lifetime")]
 	public float lifetime = 150;
 	public bool useDeath = false;
+
+	[Header("Forces")]
+	public float antForce = 2;
 }

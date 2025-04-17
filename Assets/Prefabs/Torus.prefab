@@ -12,7 +12,8 @@ GameObject:
   - component: {fileID: 9180137372315387743}
   - component: {fileID: 9180137372315387712}
   - component: {fileID: 1040652694947529451}
-  m_Layer: 8
+  - component: {fileID: 6276012588665048041}
+  m_Layer: 13
   m_Name: Torus
   m_TagString: BigFood
   m_Icon: {fileID: 0}
@@ -26,14 +27,14 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9180137372315387714}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.329, y: 0.382, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalRotation: {x: -0, y: -0.024705024, z: -0, w: 0.99969476}
+  m_LocalPosition: {x: 0.329, y: 0.382, z: -0.000000023561446}
+  m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -2.831, z: 0}
 --- !u!33 &9180137372315387743
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -100,3 +101,25 @@ CircleCollider2D:
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
   m_Radius: 10
+--- !u!114 &6276012588665048041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9180137372315387714}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2824a3e69856ec04696936e94fa17cc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  settings: {fileID: 11400000, guid: eff18608398fc493e9b42e82afe5ae97, type: 2}
+  center: {fileID: 9180137372315387742}
+  radius: 2
+  homeMask:
+    serializedVersion: 2
+    m_Bits: 2048
+  collisionMask:
+    serializedVersion: 2
+    m_Bits: 4096
+  currentPosition: {x: 0, y: 0}
