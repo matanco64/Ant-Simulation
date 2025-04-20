@@ -14,6 +14,7 @@ public class AntSettings : ScriptableObject
 	public float randomSteerMaxDuration = 1;
 	public float timeBetweenDirUpdate = 0.15f;
 	public float collisionRadius = 0.15f;
+	public float timeBetweenRandomSteers = 0.5f;
 
 	[Header("Pheromones")]
 	public float dstBetweenMarkers = 0.75f;
