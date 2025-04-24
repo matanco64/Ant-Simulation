@@ -17,27 +17,32 @@ public class Torus : MonoBehaviour
 
     List<Vector2> forcesFromAnts;
 
-    // Further reduced friction values for faster initial movement
-    public float staticFrictionThreshold = 3f;          // Lower threshold to break free more easily
-    public float baseKineticFriction = 5f;              // Reduced kinetic friction
-    public float maxVelocity = 2f;                      // Increased max velocity
+    // Physics parameters - calibrated for smoother movement
+    public float staticFrictionThreshold = 5f;
+    public float baseKineticFriction = 10f;
+    public float maxVelocity = 1f;                    // Reduced for slower movement
 
-    // New properties for smoother movement
-    public float massSimulation = 25f;                  // Adjusted mass for more responsive movement
-    public float dampingFactor = 0.95f;                 // Less damping for smoother acceleration
-    public float collisionBounciness = 0.3f;            // Reduced bounciness for smoother wall navigation
+    // Response coefficients from the model
+    public float gamma = 5f;                          // Mass response coefficient from equation (12)
+    public float gamma_rot = 10f;                     // Rotational response coefficient from equation (13)
+    public float dampingFactor = 0.98f;               // Damping to smooth movement
+    public float collisionBounciness = 0.2f;          // Reduced bounciness
 
-    // New properties to track colony entry
+    // Colony interaction
     private bool insideColony = false;
     private float colonyEntryTime = 0f;
-    private float colonyProcessTime = 3f;               // Time it takes for colony to process the torus
+    private float colonyProcessTime = 3f;
 
-    // Timer to track stuck state
+    // Movement tracking
     private float stuckTimer = 0f;
     private Vector2 lastPosition;
     private bool isStuck = false;
+    private float angularVelocity = 0f;
 
-    // Start is called before the first frame update
+    // Direction to home (for debugging)
+    [HideInInspector]
+    public Vector2 directionToHome;
+
     void Start()
     {
         currentPosition = transform.position;
@@ -45,11 +50,20 @@ public class Torus : MonoBehaviour
         currentForce = Vector2.zero;
         currentVelocity = Vector2.zero;
         forcesFromAnts = new List<Vector2>();
+        directionToHome = Vector2.zero;
+
+        // Find direction to colony
+        FindHomeDirection();
     }
 
-    // Update is called once per frame
     void Update()
     {
+        // Update direction to home periodically
+        if (Time.frameCount % 30 == 0)
+        {
+            FindHomeDirection();
+        }
+
         // Check if we're inside the colony
         CheckColonyEntry();
 
@@ -60,110 +74,32 @@ public class Torus : MonoBehaviour
             return;
         }
 
-        // Calculate total force from all ants
-        Vector2 currentForce = Vector2.zero;
+        // Clear accumulated force for this frame
+        totForce = Vector2.zero;
+
+        // Sum all forces from ants (equation 9 from model)
         foreach (var force in forcesFromAnts)
-            currentForce += force;
-
-        totForce = currentForce; // Store total force for reference by ants
-        forcesFromAnts.Clear();
-
-        // Apply cooperative behaviors based on ant roles
-        int informed = Ant.nOfStates["informed"];
-        int puller = Ant.nOfStates["puller"];
-        int lifter = Ant.nOfStates["lifter"];
-
-        // Calculate force magnitude and check if we're already moving
-        float forceMagnitude = currentForce.magnitude;
-        float velocityMagnitude = currentVelocity.magnitude;
-        bool isMoving = velocityMagnitude > 0.01f; // Lower threshold to consider it moving
-
-        // Check if we're stuck against an obstacle
-        if (Vector2.Distance(currentPosition, lastPosition) < 0.005f && forceMagnitude > 0.5f)
         {
-            stuckTimer += Time.deltaTime;
-            if (stuckTimer > 0.5f) // Reduced time to detect stuck state
-            {
-                isStuck = true;
-            }
-        }
-        else
-        {
-            stuckTimer = 0f;
-            isStuck = false;
+            totForce += force;
         }
 
-        // Apply friction model based on motion state
-        if (!isMoving)
-        {
-            // Apply significantly reduced static friction for easier initial movement
-            float effectiveStaticThreshold = staticFrictionThreshold;
+        // Apply kinetic friction based on lifters (equation 11)
+        ApplyFrictionModel();
 
-            // Further reduce static friction if we have lifters
-            if (lifter > 0)
-            {
-                effectiveStaticThreshold *= (1.0f - Mathf.Min(lifter * 0.2f, 0.8f));
-            }
+        // Calculate motion based on model equations (12) and (13)
+        CalculateMotionFromModel();
 
-            if (forceMagnitude < effectiveStaticThreshold)
-            {
-                // Not enough force to overcome static friction
-                // But allow some very small movement to avoid total sticking
-                currentForce *= 0.1f;
-            }
-            else
-            {
-                // Reduce force by static friction but allow movement
-                float reduction = Mathf.Min(effectiveStaticThreshold * 0.8f, forceMagnitude * 0.4f);
-                currentForce -= currentForce.normalized * reduction;
-            }
-        }
-        else
-        {
-            // Already moving - apply kinetic friction
-            // Reduce friction based on number of lifters (lifting behavior)
-            float liftingEffect = Mathf.Min(lifter * 0.25f, 0.85f); // Better lifting effect
-            float effectiveKineticFriction = baseKineticFriction * (1.0f - liftingEffect);
-
-            // Apply kinetic friction in opposite direction of movement
-            currentForce -= currentVelocity.normalized * effectiveKineticFriction;
-        }
-
-        // Boost force if we have coordination (pullers in alignment)
-        if (puller > 0 && forceMagnitude > 0.01f)
-        {
-            // Calculate coordination factor based on dot product of forces
-            float coordinationFactor = CalculateCoordinationFactor();
-
-            // Increased coordination bonus - more pullers working together are more effective
-            float coordinationBonus = 1.0f + (puller * 0.2f * coordinationFactor);
-            currentForce *= coordinationBonus;
-        }
-
-        // Apply force with mass simulation for more realistic movement
-        currentVelocity += currentForce * Time.deltaTime / massSimulation;
-
-        // Apply damping for smoother movement
-        currentVelocity *= dampingFactor;
-
-        // If stuck, apply a slightly larger random force to break free
-        if (isStuck)
-        {
-            currentVelocity += (Vector2)Random.insideUnitCircle * 0.8f;
-            stuckTimer = 0;
-            isStuck = false;
-        }
-
-        // Clamp maximum velocity
-        currentVelocity = Vector2.ClampMagnitude(currentVelocity, maxVelocity);
-
-        // Handle collisions with environment with improved collision response
+        // Handle collisions with environment
         HandleCollisions();
 
-        // Update position based on velocity
+        // Update position and rotation
         lastPosition = currentPosition;
         currentPosition += currentVelocity * Time.deltaTime;
         transform.position = currentPosition;
+        transform.Rotate(0, 0, angularVelocity * Mathf.Rad2Deg * Time.deltaTime);
+
+        // Clear forces for next frame
+        forcesFromAnts.Clear();
     }
 
     public void ApplyForce(Vector2 force)
@@ -172,60 +108,101 @@ public class Torus : MonoBehaviour
         forcesFromAnts.Add(force);
     }
 
-    // Calculate how well the ants are coordinating their forces
-    private float CalculateCoordinationFactor()
+    // Find the colony location to establish direction
+    void FindHomeDirection()
     {
-        if (forcesFromAnts.Count <= 1)
-            return 1.0f;
-
-        // Calculate average direction
-        Vector2 avgDirection = Vector2.zero;
-        foreach (var force in forcesFromAnts)
+        Collider2D homeCollider = Physics2D.OverlapCircle(currentPosition, 50f, homeMask);
+        if (homeCollider)
         {
-            if (force.magnitude > 0.01f)
-                avgDirection += force.normalized;
+            directionToHome = (homeCollider.transform.position - transform.position).normalized;
         }
+    }
 
-        if (avgDirection.magnitude < 0.01f)
-            return 0.5f;
+    // Apply friction model based on number of lifters (equation 11)
+    void ApplyFrictionModel()
+    {
+        // Get number of lifters
+        int lifters = Ant.nOfStates["lifter"];
 
-        avgDirection.Normalize();
+        // Bare friction force (F^0_kin in the paper)
+        float F0_kin = baseKineticFriction;
 
-        // Calculate how aligned the forces are with the average direction
-        float alignmentSum = 0;
-        int alignmentCount = 0;
+        // Friction reduction factor (β in the paper)
+        float beta = 0.5f;
 
-        foreach (var force in forcesFromAnts)
+        // Calculate effective friction: f_kin = max{F^0_kin - β*N_lifter, 0} (Equation 11)
+        float effectiveFriction = Mathf.Max(F0_kin - beta * lifters, 0);
+
+        // Apply friction in opposite direction of movement if moving
+        if (currentVelocity.magnitude > 0.01f)
         {
-            if (force.magnitude > 0.01f)
+            totForce -= currentVelocity.normalized * effectiveFriction;
+        }
+        else if (totForce.magnitude < staticFrictionThreshold)
+        {
+            // Apply static friction threshold
+            totForce = Vector2.zero;
+        }
+    }
+
+    // Calculate motion according to equations (12) and (13)
+    void CalculateMotionFromModel()
+    {
+        // V_cm = F_cm / γ (Equation 12)
+        Vector2 targetVelocity = totForce / gamma;
+
+        // Limit maximum velocity
+        targetVelocity = Vector2.ClampMagnitude(targetVelocity, maxVelocity);
+
+        // Smooth velocity changes
+        currentVelocity = Vector2.Lerp(currentVelocity, targetVelocity, Time.deltaTime * 2f);
+
+        // Apply damping
+        currentVelocity *= dampingFactor;
+
+        // Calculate net torque from all ants
+        float netTorque = 0f;
+
+        // Calculate angular velocity using equation (13)
+        // ω = (1/γ_rot) * Σ(r^i * sin(φ_i) - f_kin)
+        // Currently simplifying by assuming torque contributions are minimal
+        angularVelocity = netTorque / gamma_rot;
+
+        // Detect if stuck
+        if (Vector2.Distance(currentPosition, lastPosition) < 0.005f && totForce.magnitude > 1f)
+        {
+            stuckTimer += Time.deltaTime;
+            if (stuckTimer > 0.5f)
             {
-                alignmentSum += Vector2.Dot(force.normalized, avgDirection);
-                alignmentCount++;
+                isStuck = true;
+                currentVelocity += (Vector2)Random.insideUnitCircle * 0.5f;
+                stuckTimer = 0f;
+                isStuck = false;
             }
         }
-
-        // Return average alignment (higher is better coordination)
-        return alignmentCount > 0 ? Mathf.Clamp01((alignmentSum / alignmentCount + 1) * 0.5f) : 0.5f;
+        else
+        {
+            stuckTimer = 0f;
+        }
     }
 
     void HandleCollisions()
     {
         if (currentVelocity.magnitude < 0.01f)
-            return; // Skip collision detection for negligible movement
+            return;
 
         // Use multiple raycasts for better collision detection
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 8; i++)  // Increased from 4 to 8 for better coverage
         {
-            // Cast in different directions around the circle
-            float angle = i * Mathf.PI / 2;
+            float angle = i * Mathf.PI / 4;
             Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius * 0.8f;
             Vector2 origin = currentPosition + offset;
 
             RaycastHit2D hit = Physics2D.Raycast(
-                origin,                    // Origin point with offset
-                currentVelocity.normalized, // Direction of movement
-                currentVelocity.magnitude * Time.deltaTime + 0.05f, // Distance to check
-                collisionMask              // Layer mask for collisions
+                origin,
+                currentVelocity.normalized,
+                currentVelocity.magnitude * Time.deltaTime + 0.05f,
+                collisionMask
             );
 
             if (hit)
@@ -233,17 +210,15 @@ public class Torus : MonoBehaviour
                 // Reflect velocity off the collision surface with reduced energy
                 currentVelocity = Vector2.Reflect(currentVelocity, hit.normal) * collisionBounciness;
 
-                // Add a slight perpendicular component to help navigate around obstacles
+                // Add slight perpendicular component to navigate around obstacles
                 Vector2 perpendicular = new Vector2(-hit.normal.y, hit.normal.x);
                 currentVelocity += perpendicular * currentVelocity.magnitude * 0.3f;
 
                 // Adjust position to prevent overlapping
                 currentPosition = hit.point - hit.normal * (radius * 1.05f);
 
-                // Apply small random variation to prevent getting stuck
+                // Small random variation to prevent getting stuck
                 currentVelocity += (Vector2)Random.insideUnitCircle * 0.1f;
-
-                // Break out of the loop after handling first collision
                 break;
             }
         }
@@ -259,7 +234,7 @@ public class Torus : MonoBehaviour
             insideColony = true;
             colonyEntryTime = Time.time;
 
-            // Gradually slow down when entering colony
+            // Gradually slow down
             currentVelocity *= 0.5f;
         }
     }
@@ -275,12 +250,12 @@ public class Torus : MonoBehaviour
         if (Time.time > colonyEntryTime + colonyProcessTime)
         {
             // Change layer to stop being a food item
-            gameObject.layer = 0; // Default layer
+            gameObject.layer = 0;
 
-            // Notify any attached ants that the torus is processed
+            // Notify attached ants
             NotifyAntsToDetach();
 
-            // Consider destroying the torus or recycling it
+            // Deactivate and destroy
             gameObject.SetActive(false);
             Destroy(gameObject, 1f);
         }
@@ -288,241 +263,17 @@ public class Torus : MonoBehaviour
 
     void NotifyAntsToDetach()
     {
-        // Find all ants that might be working on this torus
+        // Find all ants and notify them to detach
         Ant[] allAnts = FindObjectsOfType<Ant>();
         foreach (Ant ant in allAnts)
         {
-            // Send message to detach from this torus
             ant.SendMessage("DetachFromTorus", this, SendMessageOptions.DontRequireReceiver);
         }
     }
-}
 
-
-/* using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-
-public class Torus : MonoBehaviour
-{
-    public AntSettings settings;
-    public Transform center;
-    public float radius = 1f;
-    public LayerMask homeMask;
-    public LayerMask collisionMask;
-
-    public Vector2 totForce;
-    Vector2 currentForce;
-    Vector2 currentVelocity;
-    public Vector2 currentPosition;
-
-    List<Vector2> forcesFromAnts;
-
-    // Reduced static friction to allow easier initial movement
-    public float staticFrictionThreshold = 5f;          // Force needed to "break free"
-    public float baseKineticFriction = 8f;              // Reduced kinetic friction
-    public float maxVelocity = 1.5f;                    // Lowered max velocity for smoother movement
-
-    // New properties for smoother movement
-    public float massSimulation = 30f;                  // Higher mass makes movement more stable
-    public float dampingFactor = 0.92f;                 // Stronger damping for smoother deceleration
-    public float collisionBounciness = 0.4f;            // Reduced bounciness on collision
-
-    // Timer to track stuck state
-    private float stuckTimer = 0f;
-    private Vector2 lastPosition;
-    private bool isStuck = false;
-
-    // Start is called before the first frame update
-    void Start()
+    // Method to get current angular velocity (needed by ants)
+    public float GetAngularVelocity()
     {
-        currentPosition = transform.position;
-        lastPosition = currentPosition;
-        currentForce = Vector2.zero;
-        currentVelocity = Vector2.zero;
-        forcesFromAnts = new List<Vector2>();
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        // Calculate total force from all ants
-        Vector2 currentForce = Vector2.zero;
-        foreach (var force in forcesFromAnts)
-            currentForce += force;
-
-        totForce = currentForce; // Store total force for reference by ants
-        forcesFromAnts.Clear();
-
-        // Apply cooperative behaviors based on ant roles
-        int informed = Ant.nOfStates["informed"];
-        int puller = Ant.nOfStates["puller"];
-        int lifter = Ant.nOfStates["lifter"];
-
-        // Calculate force magnitude and check if we're already moving
-        float forceMagnitude = currentForce.magnitude;
-        float velocityMagnitude = currentVelocity.magnitude;
-        bool isMoving = velocityMagnitude > 0.001f;
-
-        // Check if we're stuck against an obstacle
-        if (Vector2.Distance(currentPosition, lastPosition) < 0.01f && velocityMagnitude > 0.1f)
-        {
-            stuckTimer += Time.deltaTime;
-            if (stuckTimer > 1.5f)
-            {
-                isStuck = true;
-            }
-        }
-        else
-        {
-            stuckTimer = 0f;
-            isStuck = false;
-        }
-
-        // Apply friction model based on motion state
-        if (!isMoving)
-        {
-            // Apply reduced static friction for easier initial movement
-            float effectiveStaticThreshold = staticFrictionThreshold;
-
-            // Reduce static friction if we have lifters
-            if (lifter > 0)
-            {
-                effectiveStaticThreshold *= (1.0f - Mathf.Min(lifter * 0.15f, 0.7f));
-            }
-
-            if (forceMagnitude < effectiveStaticThreshold)
-            {
-                // Not enough force to overcome static friction
-                currentForce = Vector2.zero;
-                currentVelocity = Vector2.zero;
-            }
-            else
-            {
-                // Reduce force by static friction but allow movement
-                float reduction = Mathf.Min(effectiveStaticThreshold, forceMagnitude * 0.5f);
-                currentForce -= currentForce.normalized * reduction;
-            }
-        }
-        else
-        {
-            // Already moving - apply kinetic friction
-            // Reduce friction based on number of lifters (lifting behavior)
-            float liftingEffect = Mathf.Min(lifter * 0.2f, 0.8f); // Cap at 80% reduction
-            float effectiveKineticFriction = baseKineticFriction * (1.0f - liftingEffect);
-
-            // Apply kinetic friction in opposite direction of movement
-            currentForce -= currentVelocity.normalized * effectiveKineticFriction;
-        }
-
-        // Boost force if we have coordination (pullers in alignment)
-        if (puller > 1 && forceMagnitude > 0.01f)
-        {
-            // Calculate coordination factor based on dot product of forces
-            float coordinationFactor = CalculateCoordinationFactor();
-
-            // Coordination bonus - more pullers working together are more effective
-            float coordinationBonus = 1.0f + (puller * 0.15f * coordinationFactor);
-            currentForce *= coordinationBonus;
-        }
-
-        // Apply force with mass simulation for more realistic movement
-        currentVelocity += currentForce * Time.deltaTime / massSimulation;
-
-        // Apply stronger damping for smoother movement
-        currentVelocity *= dampingFactor;
-
-        // If stuck, apply a small random force to try to break free
-        if (isStuck)
-        {
-            currentVelocity += (Vector2)Random.insideUnitCircle * 0.5f;
-            stuckTimer = 0;
-            isStuck = false;
-        }
-
-        // Clamp maximum velocity 
-        currentVelocity = Vector2.ClampMagnitude(currentVelocity, maxVelocity);
-
-        // Handle collisions with environment with improved collision response
-        HandleCollisions();
-
-        // Update position based on velocity
-        lastPosition = currentPosition;
-        currentPosition += currentVelocity * Time.deltaTime;
-        transform.position = currentPosition;
-    }
-
-    public void ApplyForce(Vector2 force)
-    {
-        // Add ant's force to the collection (will be processed in Update)
-        forcesFromAnts.Add(force);
-    }
-
-    // Calculate how well the ants are coordinating their forces
-    private float CalculateCoordinationFactor()
-    {
-        if (forcesFromAnts.Count <= 1)
-            return 1.0f;
-
-        // Calculate average direction
-        Vector2 avgDirection = Vector2.zero;
-        foreach (var force in forcesFromAnts)
-        {
-            if (force.magnitude > 0.01f)
-                avgDirection += force.normalized;
-        }
-
-        if (avgDirection.magnitude < 0.01f)
-            return 0.5f;
-
-        avgDirection.Normalize();
-
-        // Calculate how aligned the forces are with the average direction
-        float alignmentSum = 0;
-        int alignmentCount = 0;
-
-        foreach (var force in forcesFromAnts)
-        {
-            if (force.magnitude > 0.01f)
-            {
-                alignmentSum += Vector2.Dot(force.normalized, avgDirection);
-                alignmentCount++;
-            }
-        }
-
-        // Return average alignment (higher is better coordination)
-        return alignmentCount > 0 ? Mathf.Clamp01((alignmentSum / alignmentCount + 1) * 0.5f) : 0.5f;
-    }
-
-    void HandleCollisions()
-    {
-        if (currentVelocity.magnitude < 0.01f)
-            return; // Skip collision detection for negligible movement
-
-        // Cast in the direction of movement to detect collisions
-        RaycastHit2D hit = Physics2D.CircleCast(
-            currentPosition,            // Origin point
-            radius * 0.9f,              // Slightly smaller radius for better collision detection
-            currentVelocity.normalized, // Direction of movement
-            currentVelocity.magnitude * Time.deltaTime + 0.05f, // Distance to check + small buffer
-            collisionMask               // Layer mask for collisions
-        );
-
-        if (hit)
-        {
-            // Reflect velocity off the collision surface with reduced energy
-            currentVelocity = Vector2.Reflect(currentVelocity, hit.normal) * collisionBounciness;
-
-            // Add a slight perpendicular component to help navigate around obstacles
-            Vector2 perpendicular = new Vector2(-hit.normal.y, hit.normal.x);
-            currentVelocity += perpendicular * currentVelocity.magnitude * 0.2f;
-
-            // Adjust position to prevent overlapping with a bit more clearance
-            currentPosition = hit.point - currentVelocity.normalized * (radius * 1.1f);
-
-            // Apply small random variation to prevent getting stuck
-            currentVelocity += (Vector2)Random.insideUnitCircle * 0.05f;
-        }
+        return angularVelocity;
     }
 }
- */
