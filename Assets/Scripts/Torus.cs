@@ -188,6 +188,7 @@ public class Torus : MonoBehaviour
 
     void HandleCollisions()
     {
+
         if (currentVelocity.magnitude < 0.01f)
             return;
 
@@ -207,19 +208,30 @@ public class Torus : MonoBehaviour
 
             if (hit)
             {
-                // Reflect velocity off the collision surface with reduced energy
-                currentVelocity = Vector2.Reflect(currentVelocity, hit.normal) * collisionBounciness;
+                Debug.Log("Collision detected with: " + hit.collider.name);
 
-                // Add slight perpendicular component to navigate around obstacles
-                Vector2 perpendicular = new Vector2(-hit.normal.y, hit.normal.x);
-                currentVelocity += perpendicular * currentVelocity.magnitude * 0.3f;
+                Vector2 normal = hit.normal;
 
-                // Adjust position to prevent overlapping
-                currentPosition = hit.point - hit.normal * (radius * 1.05f);
+                // 1. Blend the velocity correction
+                float intoWall = Vector2.Dot(currentVelocity, normal);
 
-                // Small random variation to prevent getting stuck
-                currentVelocity += (Vector2)Random.insideUnitCircle * 0.1f;
+                if (intoWall < 0f)
+                {
+                    float velocityCorrectionFactor = 0.5f; // 0 = no correction, 1 = full cancel
+                    currentVelocity -= normal * intoWall * velocityCorrectionFactor;
+                }
+
+                // 2. Blend the position correction
+                float penetrationDepth = radius - Vector2.Dot(currentPosition - hit.point, normal);
+
+                if (penetrationDepth > 0f)
+                {
+                    float positionCorrectionSpeed = 10f; // How fast to fix overlap
+                    currentPosition += normal * penetrationDepth * Time.deltaTime * positionCorrectionSpeed;
+                }
+
                 break;
+
             }
         }
     }
