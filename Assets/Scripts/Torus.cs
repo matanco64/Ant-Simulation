@@ -42,6 +42,10 @@ public class Torus : MonoBehaviour
     // Direction to home (for debugging)
     [HideInInspector]
     public Vector2 directionToHome;
+    // Parameters
+    [SerializeField] private float wallPushSpeed = 10f;
+    [SerializeField] private float velocityCorrectionStrength = 0.5f;
+    [SerializeField] private float safeDistanceMultiplier = 1.01f;
 
     void Start()
     {
@@ -90,7 +94,6 @@ public class Torus : MonoBehaviour
         CalculateMotionFromModel();
 
         // Handle collisions with environment
-        HandleCollisions();
 
         // Update position and rotation
         lastPosition = currentPosition;
@@ -100,8 +103,14 @@ public class Torus : MonoBehaviour
 
         // Clear forces for next frame
         forcesFromAnts.Clear();
-    }
 
+        HandleCollisions();
+
+
+
+
+
+    }
     public void ApplyForce(Vector2 force)
     {
         // Add ant's force to the collection (will be processed in Update)
@@ -188,50 +197,34 @@ public class Torus : MonoBehaviour
 
     void HandleCollisions()
     {
+        
+        // Update currentPosition manually
+        currentPosition += currentVelocity * Time.deltaTime;
 
-        if (currentVelocity.magnitude < 0.01f)
-            return;
+        // Cast to detect wall collision
+        RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius, currentVelocity.normalized, currentVelocity.magnitude * Time.deltaTime, LayerMask.GetMask("Wall"));
 
-        // Use multiple raycasts for better collision detection
-        for (int i = 0; i < 8; i++)  // Increased from 4 to 8 for better coverage
+        if (hit)
         {
-            float angle = i * Mathf.PI / 4;
-            Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius * 0.8f;
-            Vector2 origin = currentPosition + offset;
+            Debug.Log("Collision detected with: " + hit.collider.name);
 
-            RaycastHit2D hit = Physics2D.Raycast(
-                origin,
-                currentVelocity.normalized,
-                currentVelocity.magnitude * Time.deltaTime + 0.05f,
-                collisionMask
-            );
+            Vector2 normal = hit.normal;
 
-            if (hit)
+            // --- 1. Correct velocity (cancel into-wall motion) ---
+            float intoWall = Vector2.Dot(currentVelocity, normal);
+            if (intoWall < 0f)
             {
-                Debug.Log("Collision detected with: " + hit.collider.name);
+                currentVelocity -= normal * intoWall * velocityCorrectionStrength;
+            }
 
-                Vector2 normal = hit.normal;
+            // --- 2. Correct position (push out gently) ---
+            float distanceToWall = Vector2.Dot(currentPosition - hit.point, normal);
+            float desiredDistance = radius * safeDistanceMultiplier;
+            float penetrationDepth = desiredDistance - distanceToWall;
 
-                // 1. Blend the velocity correction
-                float intoWall = Vector2.Dot(currentVelocity, normal);
-
-                if (intoWall < 0f)
-                {
-                    float velocityCorrectionFactor = 0.5f; // 0 = no correction, 1 = full cancel
-                    currentVelocity -= normal * intoWall * velocityCorrectionFactor;
-                }
-
-                // 2. Blend the position correction
-                float penetrationDepth = radius - Vector2.Dot(currentPosition - hit.point, normal);
-
-                if (penetrationDepth > 0f)
-                {
-                    float positionCorrectionSpeed = 10f; // How fast to fix overlap
-                    currentPosition += normal * penetrationDepth * Time.deltaTime * positionCorrectionSpeed;
-                }
-
-                break;
-
+            if (penetrationDepth > 0f)
+            {
+                currentPosition += normal * penetrationDepth * wallPushSpeed * Time.deltaTime;
             }
         }
     }
