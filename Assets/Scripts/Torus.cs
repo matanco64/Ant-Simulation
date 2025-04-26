@@ -105,11 +105,6 @@ public class Torus : MonoBehaviour
         forcesFromAnts.Clear();
 
         HandleCollisions();
-
-
-
-
-
     }
     public void ApplyForce(Vector2 force)
     {
@@ -229,11 +224,13 @@ public class Torus : MonoBehaviour
 
     void CheckColonyEntry()
     {
+       
         // Check if we're inside a colony
-        Collider2D homeCollider = Physics2D.OverlapCircle(currentPosition, radius * 0.5f, homeMask);
+        Collider2D homeCollider = Physics2D.OverlapCircle(currentPosition, radius * 1.05f, homeMask);
 
         if (homeCollider && !insideColony)
         {
+            Debug.Log("Entering colony: " + homeCollider.name);
             insideColony = true;
             colonyEntryTime = Time.time;
 
@@ -255,18 +252,22 @@ public class Torus : MonoBehaviour
             // Change layer to stop being a food item
             gameObject.layer = 0;
 
-            // Notify attached ants
+            // Notify attached ants to detach and go search for more food
             NotifyAntsToDetach();
 
-            // Deactivate and destroy
-            gameObject.SetActive(false);
-            Destroy(gameObject, 1f);
+            // Start fading out
+            StartCoroutine(FadeOutAndDestroy());
         }
     }
 
     void NotifyAntsToDetach()
     {
-        // Find all ants and notify them to detach
+        // Reset the global counters for ants working on this torus
+        Ant.nOfStates["informed"] = 0;
+        Ant.nOfStates["puller"] = 0;
+        Ant.nOfStates["lifter"] = 0;
+
+        // Find all ants and notify them to detach if they're working on this torus
         Ant[] allAnts = FindObjectsOfType<Ant>();
         foreach (Ant ant in allAnts)
         {
@@ -278,5 +279,34 @@ public class Torus : MonoBehaviour
     public float GetAngularVelocity()
     {
         return angularVelocity;
+    }
+
+
+    IEnumerator FadeOutAndDestroy()
+    {
+        SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+        if (spriteRenderer == null)
+        {
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        }
+
+        if (spriteRenderer != null)
+        {
+            Color originalColor = spriteRenderer.color;
+            float fadeTime = 1.5f;
+            float elapsedTime = 0f;
+
+            while (elapsedTime < fadeTime)
+            {
+                elapsedTime += Time.deltaTime;
+                float alpha = Mathf.Lerp(originalColor.a, 0f, elapsedTime / fadeTime);
+                spriteRenderer.color = new Color(originalColor.r, originalColor.g, originalColor.b, alpha);
+                yield return null;
+            }
+        }
+
+        // Deactivate and destroy after fading out
+        gameObject.SetActive(false);
+        Destroy(gameObject, 0.1f);
     }
 }

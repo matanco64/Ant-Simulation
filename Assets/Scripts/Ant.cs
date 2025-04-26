@@ -25,14 +25,6 @@ public class Ant : MonoBehaviour
 
 	public Vector2 pullingForce; // Direction of the pull force
 
-	// Model parameters from the paper
-	[Header("Theoretical Model Parameters")]
-	public float Kc = 0.2f;              // Switching rate coefficient
-	public float Find = 1f;              // Alignment sensitivity
-	public float beta = 0.5f;            // Friction reduction factor due to lifters
-	public float gamma = 1.0f;           // Mass response coefficient
-	public float gamma_rot = 1.0f;       // Rotational response coefficient
-
 	State currentState;
 	Vector2 currentVelocity;
 	Vector2 collisionAvoidForce;
@@ -79,11 +71,30 @@ public class Ant : MonoBehaviour
 	float relativeAngleToTorus;
 	float torusAttachmentTime;
 
-	// Variables for theoretical model
-	float tiltAngle;           // φ in the paper
-	float attachmentRate;      // K_att in the paper
-	float detachmentRate;      // K_det in the paper
-	float barefrictionForce;   // F^0_kin in the paper
+	// Model parameters from the paper
+	[Header("Theoretical Model Parameters")]
+	public float Kc = 0.2f;              // Switching rate coefficient (basal decision-making rate)
+	public float Find = 1f;              // Alignment sensitivity (individual preference strength)
+	public float beta = 0.5f;            // Friction reduction factor due to lifters
+	public float gamma = 1.0f;           // Mass response coefficient
+	public float gamma_rot = 1.0f;       // Rotational response coefficient
+	public float f0 = 1.0f;              // Force magnitude applied by a single puller
+	public float phi_max = 60f;          // Maximum tilt angle in degrees (constrains orientation)
+										 // Variables for theoretical model
+	float tiltAngle;                   // φ in the paper - angle between radial direction and body axis
+	float attachmentRate;              // K_att in the paper - rate at which ants attach to cargo
+	float detachmentRate;              // K_det in the paper - rate at which ants detach from cargo
+	float barefrictionForce;           // F^0_kin in the paper - base friction before lifter reduction
+
+	// Improved model variables
+	float effectiveFind;               // Effective alignment sensitivity (adjusted for group size)
+	bool isLeader;                     // Whether this ant is a leader/informed ant
+
+
+	// Critical point parameters
+	[Header("Critical Point Parameters")]
+	public float Find_c = 0.5f;          // Critical value for the alignment sensitivity
+
 
 	public void SetColony(AntColony colony)
 	{
@@ -111,7 +122,14 @@ public class Ant : MonoBehaviour
 
 		// Initialize model parameters
 		tiltAngle = 0f;
-		barefrictionForce = 0.5f;  // This would be calibrated based on your simulation
+		barefrictionForce = 0.5f;  // Base friction force
+		attachmentRate = 0.4f;     // Base attachment rate
+		detachmentRate = 0.6f;     // Base detachment rate
+		isLeader = Random.value < 0.05f;  // 5% chance of being a leader ant
+
+		// Small random variation in individual parameters to simulate ant diversity
+		Kc += Random.Range(-0.05f, 0.05f);
+		Find += Random.Range(-0.1f, 0.1f);
 	}
 
 	void Update()
@@ -142,12 +160,15 @@ public class Ant : MonoBehaviour
 			if (targetTorus != null)
 			{
 				ApplyTheoreticalModelForces();
+				ProcessStochasticDynamics();
 			}
 		}
 		else
 		{
 			HandleMovement();
 		}
+
+		    // UpdateVisualizations(); // change ants colorsd based on state
 	}
 
 	void ApplyTheoreticalModelForces()
@@ -158,7 +179,7 @@ public class Ant : MonoBehaviour
 			return;
 		}
 
-		
+
 		Vector2 antToCenterDir = (targetTorus.currentPosition - currentPosition).normalized;
 
 		// Calculate the local radial direction (n^i in the paper) - this is the unit vector from torus center to ant
@@ -170,52 +191,72 @@ public class Ant : MonoBehaviour
 		// Calculate tilt angle φ (angle between radial direction and body axis)
 		tiltAngle = Vector2.SignedAngle(localRadialDirection, bodyAxisVector) * Mathf.Deg2Rad;
 
+		// Clamp tilt angle within [-φ_max, +φ_max] as per paper
+		float maxTiltRadians = phi_max * Mathf.Deg2Rad;
+		tiltAngle = Mathf.Clamp(tiltAngle, -maxTiltRadians, maxTiltRadians);
+
+		// Calculate the effective Find based on number of ants carrying the torus
+		// This implements the concept that the transition depends on N*f0/Find
+		int totalCarriers = nOfStates["informed"] + nOfStates["puller"] + nOfStates["lifter"];
+		effectiveFind = Find / totalCarriers;
+
 		if (currentState == State.Informed)
 		{
 			// CRITICAL FIX: Actually calculate and apply force when informed
 
 			// Find direction to home
-			Vector2 directionToHome = Vector2.zero;
+			Vector2 directionToNest = Vector2.zero;
 			Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
 
 			if (home)
 			{
 				// Direction toward home
-				directionToHome = ((Vector2)home.transform.position - targetTorus.currentPosition).normalized;
+				directionToNest = ((Vector2)home.transform.position - targetTorus.currentPosition).normalized;
 			}
 			else
 			{
 				// If home not visible, use direction away from torus as fallback
-				directionToHome = -antToCenterDir;
+				directionToNest = (homePos - targetTorus.currentPosition).normalized;
 			}
 
-			// Apply strong push force - needs to be strong enough to overcome inertia
-			float pushStrength = settings.collisionAvoidSteerStrength * 1.5f;
-			pullingForce = directionToHome * pushStrength;
+			// Implementation of the external field (informed ant) in the theoretical model
+			float leadershipStrength = isLeader ? 2.0f : 1.0f;
+			pullingForce = directionToNest * settings.collisionAvoidSteerStrength * leadershipStrength;
 
-			// CRITICAL: Actually apply the force to torus
+			// Apply force to torus - this implements equation (9) from the paper
+			targetTorus.ApplyForce(pullingForce);
+		}
+
+		else if (currentState == State.Pulling)
+		{
+			// Implementation of equation (9) from the paper
+			// Pulling force depends on alignment with the radial direction
+			float pullMagnitude = f0 * Mathf.Cos(tiltAngle);
+
+			// The effective force that contributes to translation
+			pullingForce = bodyAxisVector * pullMagnitude;
+
+			// Apply this force to the torus
+			targetTorus.ApplyForce(pullingForce);
+		}
+
+		else if (currentState == State.Lifting)
+		{
+			// Implementation of equation (11) from the paper
+			// Lifters reduce friction rather than directly applying force
+
+			// Calculate the effective lifting force based on the number of lifters
+			float liftingContribution = beta; // Each lifter reduces friction by beta
+
+			// Apply a small upward force to simulate friction reduction
+			pullingForce = Vector2.up * settings.collisionAvoidSteerStrength * 0.3f;
+
+			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
 
-			Debug.Log("Informed ant applying force: " + pullingForce.magnitude);
+			// The actual friction reduction is handled globally via nOfStates["lifter"]
 		}
 		if (currentState == State.Pulling)
-		{
-
-
-			// Calculate the effective pulling force as per the paper's model
-			// The effective force depends on how aligned the ant is with the radial direction
-			float pullMagnitude = settings.collisionAvoidSteerStrength * Mathf.Cos(tiltAngle);
-
-			// Apply the force in the direction of the body axis
-			pullingForce = bodyAxisVector * pullMagnitude;
-		}
-
-		if (currentState == State.Lifting)
-		{
-			// For lifters, we don't apply direct force but reduce friction
-			pullingForce = Vector2.zero;
-		}
-			if (currentState == State.Pulling)
 		{
 			// For pullers, apply force according to equation (9)
 			// f_m = Σ n^i F_i - f_kin
@@ -276,18 +317,19 @@ public class Ant : MonoBehaviour
 			currentPosition = torusPos + newOffset;
 			transform.position = currentPosition;
 
+			// Calculate the total force direction from all ants on the torus
+			Vector2 totalForceDir = targetTorus.totForce.normalized;
+
 			// Orient ant based on its role according to the model
 			Vector2 directionToFace;
 			if (currentState == State.Pulling)
 			{
-				// When pulling, face partially away from torus
-				// The tilt angle φ is limited to a window of orientation [-φ_max, +φ_max]
-				float maxTiltAngle = 60f * Mathf.Deg2Rad; // φ_max in radians
+				// Implementation of state-dependent orientation from the paper
+				// When pulling, face partially away from torus with limited tilt angle
 
-				// Calculate desired tilt - try to align with total force direction
-				Vector2 totalForceDir = targetTorus.totForce.normalized;
+				// Calculate desired tilt for alignment with total force
 				float desiredTilt = Vector2.SignedAngle(-newOffset.normalized, totalForceDir) * Mathf.Deg2Rad;
-				desiredTilt = Mathf.Clamp(desiredTilt, -maxTiltAngle, maxTiltAngle);
+				desiredTilt = Mathf.Clamp(desiredTilt, -phi_max * Mathf.Deg2Rad, phi_max * Mathf.Deg2Rad);
 
 				// Calculate the direction to face based on the tilt angle
 				float facingAngle = Mathf.Atan2(newOffset.y, newOffset.x) + Mathf.PI + desiredTilt;
@@ -300,8 +342,22 @@ public class Ant : MonoBehaviour
 			}
 			else // Informed state
 			{
-				// When informed, face tangentially to assess the situation
-				directionToFace = new Vector2(-newOffset.y, newOffset.x).normalized;
+				Vector2 nestDirection = Vector2.zero;
+				Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+				if (home)
+				{
+					// Direction toward home
+					nestDirection = ((Vector2)home.transform.position - torusPos).normalized;
+					// Face in a direction that helps move toward nest
+					Vector2 tangentVector = new Vector2(-newOffset.y, newOffset.x).normalized;
+					// Orient to maximize effect in nest direction
+					directionToFace = Vector2.Dot(tangentVector, nestDirection) > 0 ? tangentVector : -tangentVector;
+				}
+				else
+				{
+					// Default to tangential orientation if nest not visible
+					directionToFace = new Vector2(-newOffset.y, newOffset.x).normalized;
+				}
 			}
 
 			// Set rotation to face the appropriate direction
@@ -365,8 +421,6 @@ public class Ant : MonoBehaviour
 	{
 		RaycastHit2D hitLeft = Physics2D.Raycast(antennaLeft.position, antennaLeft.right, settings.antennaDst, collisionMask);
 		RaycastHit2D hitRight = Physics2D.Raycast(antennaRight.position, antennaRight.right, settings.antennaDst, collisionMask);
-		// Debug.DrawRay (antennaLeft.position, antennaLeft.right * ((hitLeft) ? hitLeft.distance : settings.antennaDst), (hitLeft) ? Color.red : Color.green);
-		// Debug.DrawRay (antennaRight.position, antennaRight.right * ((hitRight) ? hitRight.distance : settings.antennaDst), (hitRight) ? Color.red : Color.green);
 
 		if (Time.time > obstacleForceResetTime)
 		{
@@ -482,7 +536,6 @@ public class Ant : MonoBehaviour
 				else
 				{
 					// Large food (torus) requires collaboration according to model
-					Debug.Log("Transitioning to Informed state");
 					targetFood.gameObject.layer = 0;
 					currentState = State.Informed;
 					nOfStates["informed"]++;
@@ -495,8 +548,7 @@ public class Ant : MonoBehaviour
 					Vector2 offset = currentPosition - targetTorus.currentPosition;
 					relativeAngleToTorus = Mathf.Atan2(offset.y, offset.x);
 
-					// Calculate attachment rate based on torus movement
-					// K_att depends on the motion of the cargo according to paper
+					// Update attachment rate based on torus movement
 					UpdateAttachmentRate();
 
 					// Store when we attached to the torus
@@ -515,6 +567,24 @@ public class Ant : MonoBehaviour
 		{
 			HandlePheromoneSteering();
 		}
+	}
+
+	float CalculateInformedAssessmentTime()
+	{
+		// Calculate assessment time based on proximity to critical point
+		// Groups near critical size should have longer assessment periods
+		int totalCarriers = nOfStates["informed"] + nOfStates["puller"] + nOfStates["lifter"];
+
+		// Calculate distance from critical point (N*f0/Find ~ 0.5)
+		float criticalRatio = totalCarriers * f0 / Find;
+		float distanceFromCritical = Mathf.Abs(criticalRatio - Find_c);
+
+		// Groups near critical size (0.5) get longer assessment time
+		// Peaked at critical point, falls off as we move away
+		float baseTime = 5.0f;
+		float criticalBonus = Mathf.Exp(-distanceFromCritical * 2.0f) * 3.0f;
+
+		return baseTime + criticalBonus;
 	}
 
 	void UpdateAttachmentRate()
@@ -548,72 +618,86 @@ public class Ant : MonoBehaviour
 
 		nOfStates["informed"]--;
 
-		// According to the model, role assignment depends on ant position and force alignment
 		// Calculate appropriate role based on theoretical model
 		bool shouldPull = CalculateRoleProbability();
 
 		if (shouldPull)
 		{
-			// Pull - ant decides to become a puller
+			// become a puller
 			currentState = State.Pulling;
 			nOfStates["puller"]++;
 			Debug.Log("Transitioning to Pulling state");
 		}
 		else
 		{
-			// Lift - ant decides to become a lifter
+			// become a lifter
 			currentState = State.Lifting;
 			nOfStates["lifter"]++;
 			Debug.Log("Transitioning to Lifting state");
 		}
 
 		// Schedule role reassessment according to stochastic model
-		float reassessmentRate = 5f;
+		// Rate depends on proximity to critical point for maximal responsiveness
+		float criticalFactor = CalculateCriticalityFactor();
+		float reassessmentRate = 3.0f * criticalFactor;
 		Invoke("EvaluateRoleSwitching", reassessmentRate);
+	}
+
+	float CalculateCriticalityFactor()
+	{
+		// Calculate a factor that peaks at the critical point
+		int totalCarriers = nOfStates["informed"] + nOfStates["puller"] + nOfStates["lifter"];
+		float criticalRatio = totalCarriers * f0 / Find;
+		float distanceFromCritical = Mathf.Abs(criticalRatio - Find_c);
+
+		// Factor peaks at 1.0 at critical point, decays away from it
+		return Mathf.Exp(-distanceFromCritical * 1.5f) + 0.5f;
 	}
 
 	bool CalculateRoleProbability()
 	{
-		// Initially assign role based on position relative to cargo movement direction
-		// and cargo proximity to home (as a heuristic for what would be useful)
+		// Implementation of the Ising-like model for role assignment
 
-		// Check if we can see home
+		// Check if we can see home to implement directional bias
 		Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+		float dotProduct = 0f;
 
 		if (home)
 		{
 			Vector2 homeDirection = ((Vector2)home.transform.position - currentPosition).normalized;
 			Vector2 torusToAnt = (currentPosition - targetTorus.currentPosition).normalized;
-
-			// Calculate dot product to determine if ant is between home and torus
-			float dotProduct = Vector2.Dot(homeDirection, torusToAnt);
-
-			// If ant is between home and torus, pulling makes more sense
-			if (dotProduct > 0.3f)
-			{
-				return true; // Become a puller
-			}
-
-			// If home is behind torus relative to ant, lifting makes more sense
-			if (dotProduct < -0.3f)
-			{
-				return false; // Become a lifter
-			}
+			dotProduct = Vector2.Dot(homeDirection, torusToAnt);
 		}
 
 		// If no clear positional advantage, use a probabilistic approach
 		// Start with 50/50 distribution
 		float pullProbability = 0.5f;
 
+		// Leaders (informed ants) prefer pulling when in good position
+		if (isLeader && dotProduct > 0)
+		{
+			pullProbability = 0.8f;
+		}
+
+
 		// Adjust based on current distribution of roles
 		int totalAttached = nOfStates["puller"] + nOfStates["lifter"];
 		if (totalAttached > 0)
 		{
-			// Try to maintain a balance - more likely to become the less common role
+			// Current ratio of pullers
 			float pullerRatio = (float)nOfStates["puller"] / totalAttached;
 
-			// Adjust probability inverse to current ratio
-			pullProbability = 1.0f - pullerRatio;
+			// Calculate distance from critical point
+			int allAnts = totalAttached + nOfStates["informed"];
+			float criticalRatio = allAnts * f0 / Find;
+			float distanceFromCritical = Mathf.Abs(criticalRatio - Find_c);
+
+			// Near critical point: balance roles more closely to 50/50
+			// Far from critical point: stronger tendency to compensate for imbalance
+			float balancingStrength = 1.0f + distanceFromCritical;
+
+			// Adjust probability to balance the system
+			pullProbability = 1.0f - Mathf.Pow(pullerRatio, balancingStrength);
 		}
 
 		// Make final decision
@@ -630,7 +714,6 @@ public class Ant : MonoBehaviour
 		UpdateAttachmentRate();
 
 		// Implementation of equation (1) from the paper for role switching
-		// Calculate probability based on alignment with overall force
 
 		// Get normalized force directions
 		Vector2 antForce = Vector2.zero;
@@ -658,21 +741,32 @@ public class Ant : MonoBehaviour
 		if (currentState == State.Pulling)
 		{
 			// Probability of Puller → Lifter transition
-			// exp(-exponent) gives higher probability when alignment is negative
+			// Higher when alignment is negative (pulling against total force)
 			switchProbability = Kc * Mathf.Exp(-exponent);
 		}
 		else // Lifting state
 		{
-			// Probability of Lifter → Puller transition
-			// exp(exponent) gives higher probability when alignment is positive
+			// Probability of Lifter → Puller transition.
+			// Higher when alignment is positive  (could help by pulling)
 			switchProbability = Kc * Mathf.Exp(exponent);
 		}
 
 		// Scale by time delta to get per-frame probability
 		float frameProb = switchProbability * Time.deltaTime * 10f;
-
-		// Clamp to sensible range
 		frameProb = Mathf.Clamp01(frameProb);
+
+		// Apply critical point sensitivity - increased switching near critical point
+
+		int totalAttached = nOfStates["puller"] + nOfStates["lifter"] + nOfStates["informed"];
+		float criticalRatio = totalAttached * f0 / Find;
+		float distanceFromCritical = Mathf.Abs(criticalRatio - Find_c);
+
+		// Enhance switching rate near critical point for maximum responsiveness
+		if (distanceFromCritical < 0.2f)
+		{
+			frameProb *= 1.5f;
+			frameProb = Mathf.Clamp01(frameProb);
+		}
 
 		// Apply stochastic role switching
 		if (Random.value < frameProb)
@@ -682,19 +776,17 @@ public class Ant : MonoBehaviour
 				currentState = State.Lifting;
 				nOfStates["puller"]--;
 				nOfStates["lifter"]++;
-				Debug.Log($"Switched to Lifting. Alignment: {alignment:F2}, Probability: {frameProb:F3}");
 			}
 			else
 			{
 				currentState = State.Pulling;
 				nOfStates["lifter"]--;
 				nOfStates["puller"]++;
-				Debug.Log($"Switched to Pulling. Alignment: {alignment:F2}, Probability: {frameProb:F3}");
 			}
 		}
 
 		// Continue evaluating role switching
-		float reassessmentRate = 3f; // Reassess every 3 seconds
+		float reassessmentRate = 3f * CalculateCriticalityFactor(); // Reassess every 3 seconds
 		Invoke("EvaluateRoleSwitching", reassessmentRate);
 	}
 
@@ -810,7 +902,7 @@ public class Ant : MonoBehaviour
 
 		if (targetFood != null)
 		{
-			randomSteerForce = Vector2.zero;
+			randomSteerForce = Vector2.zero;  //maybe we should had rundom steer here too
 			return;
 		}
 
@@ -866,13 +958,9 @@ public class Ant : MonoBehaviour
 
 		// τ_rot = (r_i/γ_rot) * r_i × ω (Equation 10)
 		// We're in 2D so the cross product becomes a scalar
-		// In 2D, r × F = r.magnitude * F.magnitude * sin(angle)
-
-		// Get angular velocity (we'd need to get this from the torus)
 		float angularVelocity = targetTorus.GetAngularVelocity();
 
 		// Calculate perpendicular component 
-		// In 2D, this would be the perpendicular direction to radius vector
 		Vector2 radiusVector = currentPosition - targetTorus.currentPosition;
 		Vector2 tangentVector = new Vector2(-radiusVector.y, radiusVector.x).normalized;
 
@@ -902,31 +990,36 @@ public class Ant : MonoBehaviour
 		if (targetTorus == null || (currentState != State.Pulling && currentState != State.Informed))
 			return;
 
-		// Vector from torus center to ant
+		// Vector from torus center to ant (radial direction n^i in paper)
 		Vector2 radiusVector = currentPosition - targetTorus.currentPosition;
 		Vector2 radialDirection = radiusVector.normalized;
 
-		// Calculate the unit radial vector n^i
-		Vector2 n_i = radialDirection;
+		// Calculate force applied by this ant (F_i in paper)
+		float forceMagnitude = f0;
+		Vector2 pullForce = currentForwardDir * forceMagnitude;
 
-		// Calculate the force applied by this ant
-		Vector2 pullForce = currentForwardDir * settings.collisionAvoidSteerStrength;
+		// Calculate the projected component of force onto radial direction (n^i·F_i)
+		float radialComponent = Vector2.Dot(pullForce, radialDirection);
 
-		// Project pull force onto radial direction (dot product) - this is n^i·F_i in equation (9)
-		float radialComponent = Vector2.Dot(pullForce, n_i);
-
-		// Calculate the friction force based on number of lifters
+		// Calculate friction force
 		float frictionForce = CalculateKineticFriction();
 
-		// Calculate net force in radial direction
-		float netRadialForce = radialComponent - frictionForce;
-
-		// Apply this force to the torus if positive
-		if (netRadialForce > 0)
+		// Calculate effective force according to equation (9)
+		Vector2 effectiveForce = Vector2.zero;
+		if (currentState == State.Pulling)
 		{
-			Vector2 effectiveForce = n_i * netRadialForce;
-			targetTorus.ApplyForce(effectiveForce);
+			// For pullers: Apply force along body axis, modified by tilt angle
+			effectiveForce = pullForce * Mathf.Cos(tiltAngle);
 		}
+		else if (currentState == State.Informed)
+		{
+			// For informed ants: Direct force toward nest
+			Vector2 directionToNest = (homePos - targetTorus.currentPosition).normalized;
+			effectiveForce = directionToNest * forceMagnitude;
+		}
+
+		// Apply force to torus
+		targetTorus.ApplyForce(effectiveForce);
 	}
 
 	// Method to calculate the center of mass velocity as per equation (12)
@@ -936,12 +1029,8 @@ public class Ant : MonoBehaviour
 			return Vector2.zero;
 
 		// V_cm = F_cm / γ (Equation 12)
-		// We'd get F_cm from the torus as the sum of all applied forces
 		Vector2 totalForce = targetTorus.totForce;
-
-		// Calculate V_cm
 		Vector2 centerOfMassVelocity = totalForce / gamma;
-
 		return centerOfMassVelocity;
 	}
 
@@ -973,7 +1062,7 @@ public class Ant : MonoBehaviour
 		return angularVelocity;
 	}
 
-	// Method to implement the stochastic attachment-detachment dynamics
+	// Improved method to implement the stochastic attachment-detachment dynamics
 	void ProcessAttachmentDetachment()
 	{
 		if (targetTorus == null)
@@ -982,11 +1071,28 @@ public class Ant : MonoBehaviour
 		// Update attachment/detachment rates based on torus movement
 		UpdateAttachmentRate();
 
-		// For attached ants, chance to detach
+		// For attached ants, calculate chance to detach
 		if (currentState == State.Pulling || currentState == State.Lifting)
 		{
-			// Apply detachment probability
-			if (Random.value < detachmentRate * Time.deltaTime)
+			// Apply detachment probability using the Boltzmann factor from the paper
+			float detachProb = detachmentRate * Time.deltaTime;
+
+			// Modify probability based on alignment with total force (as in equation 1)
+			Vector2 totalForceDir = targetTorus.totForce.normalized;
+			float alignment = Vector2.Dot(currentForwardDir, totalForceDir);
+
+			if (currentState == State.Pulling)
+			{
+				// Pullers more likely to detach when misaligned with total force
+				detachProb *= Mathf.Exp(-alignment / Find);
+			}
+			else
+			{
+				// Lifters more likely to detach when aligned with total force
+				detachProb *= Mathf.Exp(alignment / Find);
+			}
+
+			if (Random.value < detachProb)
 			{
 				// Detach from torus
 				if (currentState == State.Pulling)
@@ -1003,8 +1109,7 @@ public class Ant : MonoBehaviour
 				StartTurnAround();
 			}
 		}
-
-		// For nearby but unattached ants, chance to attach
+		// For nearby but unattached ants, calculate chance to attach
 		else if (currentState == State.SearchingForFood &&
 				targetTorus != null &&
 				Vector2.Distance(currentPosition, targetTorus.currentPosition) < targetTorus.radius * 1.5f)
@@ -1020,15 +1125,77 @@ public class Ant : MonoBehaviour
 				Vector2 offset = currentPosition - targetTorus.currentPosition;
 				relativeAngleToTorus = Mathf.Atan2(offset.y, offset.x);
 
-				// Schedule role decision
-				Invoke("TransitionFromInformed", Random.Range(3f, 5f));
+				// Schedule role decision 
+				float assessmentTime = CalculateInformedAssessmentTime();
+				Invoke("TransitionFromInformed", assessmentTime);
 			}
 		}
 	}
 
+
+	// Process the complete stochastic dynamics model
 	void ProcessStochasticDynamics()
 	{
-		// Handle stochastic attachment/detachment
+		// Handle attachment/detachment dynamics
 		ProcessAttachmentDetachment();
+
+		// Calculate total force on torus for phase transition analysis
+		if (targetTorus != null)
+		{
+			// Analyze proximity to critical point
+			int totalCarriers = nOfStates["informed"] + nOfStates["puller"] + nOfStates["lifter"];
+			float criticalRatio = totalCarriers * f0 / Find;
+
+			// Identify whether we're near critical point for optimal responsiveness
+			bool nearCritical = Mathf.Abs(criticalRatio - Find_c) < 0.2f;
+
+			// Adjust behavior if we're near critical point
+			if (nearCritical && currentState == State.Informed)
+			{
+				// Enhanced influence of informed ants near critical point
+				// This implements the "susceptibility" concept from the paper
+				isLeader = true;
+			}
+		}
 	}
+		// Add this method to the Ant class
+	public void DetachFromTorus(Torus torus)
+	{
+		Debug.Log("Ant detaching from torus: ");
+		// Only act if this is the torus we're attached to
+		if (torus == targetTorus)
+		{
+			// Reset the ant's state
+			if (currentState == State.Informed)
+				nOfStates["informed"]--;
+			else if (currentState == State.Pulling)
+				nOfStates["puller"]--;
+			else if (currentState == State.Lifting)
+				nOfStates["lifter"]--;
+
+			// Set the ant back to searching for food
+			currentState = State.SearchingForFood;
+			targetTorus = null;
+			targetFood = null;
+
+			// Reset velocity and set the ant on a random path
+			currentVelocity = GetRandomDir(currentForwardDir) * settings.maxSpeed;
+
+			// Mark that we're leaving from the colony
+			leftHomeTime = Time.time;
+			deathTime = Time.time + settings.lifetime;
+
+			// Cancel any pending role transitions
+			CancelInvoke("TransitionFromInformed");
+			CancelInvoke("EvaluateRoleSwitching");
+		}
+	}
+
+	/* void UpdateVisualizations()
+	{
+		if (currentState == State.Pulling || currentState == State.Lifting){
+			GetComponent<Renderer>().material.color = Color.green;
+		}
+	} */
 }
+
