@@ -153,11 +153,12 @@ public class Ant : MonoBehaviour
 	void ApplyTheoreticalModelForces()
 	{
 		// Only apply forces if attached to torus and in pulling or lifting state
-		if (targetTorus == null || (currentState != State.Pulling && currentState != State.Lifting))
+		if (targetTorus == null || (currentState != State.Pulling && currentState != State.Lifting && currentState != State.Informed))
 		{
 			return;
 		}
 
+		
 		Vector2 antToCenterDir = (targetTorus.currentPosition - currentPosition).normalized;
 
 		// Calculate the local radial direction (n^i in the paper) - this is the unit vector from torus center to ant
@@ -169,7 +170,52 @@ public class Ant : MonoBehaviour
 		// Calculate tilt angle φ (angle between radial direction and body axis)
 		tiltAngle = Vector2.SignedAngle(localRadialDirection, bodyAxisVector) * Mathf.Deg2Rad;
 
+		if (currentState == State.Informed)
+		{
+			// CRITICAL FIX: Actually calculate and apply force when informed
+
+			// Find direction to home
+			Vector2 directionToHome = Vector2.zero;
+			Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+
+			if (home)
+			{
+				// Direction toward home
+				directionToHome = ((Vector2)home.transform.position - targetTorus.currentPosition).normalized;
+			}
+			else
+			{
+				// If home not visible, use direction away from torus as fallback
+				directionToHome = -antToCenterDir;
+			}
+
+			// Apply strong push force - needs to be strong enough to overcome inertia
+			float pushStrength = settings.collisionAvoidSteerStrength * 1.5f;
+			pullingForce = directionToHome * pushStrength;
+
+			// CRITICAL: Actually apply the force to torus
+			targetTorus.ApplyForce(pullingForce);
+
+			Debug.Log("Informed ant applying force: " + pullingForce.magnitude);
+		}
 		if (currentState == State.Pulling)
+		{
+
+
+			// Calculate the effective pulling force as per the paper's model
+			// The effective force depends on how aligned the ant is with the radial direction
+			float pullMagnitude = settings.collisionAvoidSteerStrength * Mathf.Cos(tiltAngle);
+
+			// Apply the force in the direction of the body axis
+			pullingForce = bodyAxisVector * pullMagnitude;
+		}
+
+		if (currentState == State.Lifting)
+		{
+			// For lifters, we don't apply direct force but reduce friction
+			pullingForce = Vector2.zero;
+		}
+			if (currentState == State.Pulling)
 		{
 			// For pullers, apply force according to equation (9)
 			// f_m = Σ n^i F_i - f_kin
@@ -853,7 +899,7 @@ public class Ant : MonoBehaviour
 	// Method to apply force as per equations (8) and (9)
 	void ApplyForceToTorus()
 	{
-		if (targetTorus == null || currentState != State.Pulling)
+		if (targetTorus == null || (currentState != State.Pulling && currentState != State.Informed))
 			return;
 
 		// Vector from torus center to ant

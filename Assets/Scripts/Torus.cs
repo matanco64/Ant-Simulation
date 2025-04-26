@@ -206,8 +206,6 @@ public class Torus : MonoBehaviour
 
         if (hit)
         {
-            Debug.Log("Collision detected with: " + hit.collider.name);
-
             Vector2 normal = hit.normal;
 
             // --- 1. Correct velocity (cancel into-wall motion) ---
