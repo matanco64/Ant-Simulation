@@ -234,7 +234,7 @@ public class Ant : MonoBehaviour
 			float pullMagnitude = f0 * Mathf.Cos(tiltAngle);
 
 			// The effective force that contributes to translation
-			pullingForce = bodyAxisVector * pullMagnitude;
+			pullingForce = -bodyAxisVector * pullMagnitude;
 
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
@@ -249,10 +249,10 @@ public class Ant : MonoBehaviour
 			float liftingContribution = beta; // Each lifter reduces friction by beta
 
 			// Apply a small upward force to simulate friction reduction
-			pullingForce = Vector2.up * settings.collisionAvoidSteerStrength * 0.3f;
+			// pullingForce = Vector2.up * settings.collisionAvoidSteerStrength * 0.3f;
 
 			// Apply this force to the torus
-			targetTorus.ApplyForce(pullingForce);
+			// targetTorus.ApplyForce(pullingForce);
 
 			// The actual friction reduction is handled globally via nOfStates["lifter"]
 		}
@@ -263,7 +263,7 @@ public class Ant : MonoBehaviour
 			// Where n^i is the radial direction and F_i is the force applied by a single puller
 
 			// In our case, each ant applies force in its forward direction
-			Vector2 pullForce = bodyAxisVector * settings.collisionAvoidSteerStrength;
+			Vector2 pullForce = -bodyAxisVector * settings.collisionAvoidSteerStrength;
 
 			// Calculate the effective pulling force as per the paper's model
 			// The effective force depends on how aligned the ant is with the radial direction
@@ -282,10 +282,10 @@ public class Ant : MonoBehaviour
 			// They don't apply direct force but reduce friction
 
 			// We simulate this by applying a small upward force to reduce the effect of gravity/friction
-			pullingForce = Vector2.up * settings.collisionAvoidSteerStrength * 0.3f;
+			// pullingForce = Vector2.up * settings.collisionAvoidSteerStrength * 0.3f;
 
-			// Apply this force to the torus
-			targetTorus.ApplyForce(pullingForce);
+			// // Apply this force to the torus
+			// targetTorus.ApplyForce(pullingForce);
 
 			// We would also want to reduce the friction term in the Torus class
 			// This is handled by the global counter of lifters (nOfStates["lifter"])
