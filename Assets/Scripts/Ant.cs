@@ -609,13 +609,13 @@ public class Ant : MonoBehaviour
 			// Higher attachment rate when torus is moving (as described in paper)
 			if (torusSpeed > 0.1f)
 			{
-				attachmentRate = 0.8f;  // Higher rate when moving
-				detachmentRate = 0.2f;  // Lower detachment when moving
+				attachmentRate = 0.8f;  // Higher rate when moving K_on
+				detachmentRate = 0.2f;  // Lower detachment when moving K_off
 			}
 			else
 			{
-				attachmentRate = 0.4f;  // Lower rate when stationary
-				detachmentRate = 0.6f;  // Higher detachment when stationary
+				attachmentRate = 0.4f;  // Lower rate when stationary  K_on
+				detachmentRate = 0.6f;  // Higher detachment when stationary K_off
 			}
 		}
 	}
@@ -1088,24 +1088,24 @@ public class Ant : MonoBehaviour
 		if (currentState == State.Pulling || currentState == State.Lifting)
 		{
 			// Apply detachment probability using the Boltzmann factor from the paper
-			float detachProb = detachmentRate * Time.deltaTime;
+			//float detachProb = detachmentRate * Time.deltaTime;
 
 			// Modify probability based on alignment with total force (as in equation 1)
-			Vector2 totalForceDir = targetTorus.totForce.normalized;
-			float alignment = Vector2.Dot(currentForwardDir, totalForceDir);
+			//Vector2 totalForceDir = targetTorus.totForce.normalized;
+			//float alignment = Vector2.Dot(currentForwardDir, totalForceDir);
 
-			if (currentState == State.Pulling)
-			{
-				// Pullers more likely to detach when misaligned with total force
-				detachProb *= Mathf.Exp(-alignment / Find);
-			}
-			else
-			{
-				// Lifters more likely to detach when aligned with total force
-				detachProb *= Mathf.Exp(alignment / Find);
-			}
+			// if (currentState == State.Pulling)
+			// {
+			// 	// Pullers more likely to detach when misaligned with total force
+			// 	detachProb *= Mathf.Exp(-alignment / Find);
+			// }
+			// else
+			// {
+			// 	// Lifters more likely to detach when aligned with total force
+			// 	detachProb *= Mathf.Exp(alignment / Find);
+			// }
 
-			if (Random.value < detachProb)
+			if (Random.value < detachmentRate)
 			{
 				// Detach from torus
 				if (currentState == State.Pulling)
@@ -1114,10 +1114,7 @@ public class Ant : MonoBehaviour
 					nOfStates["lifter"]--;
 
 				// Return to searching
-				currentState = State.SearchingForFood;
-				targetTorus = null;
-				targetFood = null;
-
+				DetachFromTorus(targetTorus);
 				// Move away from torus
 				StartTurnAround();
 			}
@@ -1149,7 +1146,7 @@ public class Ant : MonoBehaviour
 	// Process the complete stochastic dynamics model
 	void ProcessStochasticDynamics()
 	{
-		// Handle attachment/detachment dynamics
+		// Handle attachment/detachment dynamics 
 		ProcessAttachmentDetachment();
 
 		// Calculate total force on torus for phase transition analysis
