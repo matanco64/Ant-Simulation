@@ -5126,7 +5126,7 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: eff18608398fc493e9b42e82afe5ae97, type: 2}
   antPrefab: {fileID: 402160823636076130, guid: 6521f716eb1dd42a3b8f86938e1183fa,
     type: 3}
-  numToSpawn: 500
+  numToSpawn: 50
   antHolder: {fileID: 1127930924}
   replenishDead: 1
   homeMarkers: {fileID: 1838622586}
@@ -10643,7 +10643,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1694517054}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -23, y: -5, z: 0}
+  m_LocalPosition: {x: -2.5, y: -5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

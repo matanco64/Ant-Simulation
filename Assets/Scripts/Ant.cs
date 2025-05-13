@@ -103,10 +103,33 @@ public class Ant : MonoBehaviour
 		this.colony = colony;
 	}
 
+
+	void ChangeState(State state)
+	{
+		switch (state)
+		{
+			case State.SearchingForFood:
+				SetColor(Color.black);
+				break;
+			case State.ReturningHome:
+				SetColor(Color.green);
+				break;
+			case State.Informed:
+				SetColor(Color.yellow);
+				break;
+			case State.Pulling:
+				SetColor(Color.red);
+				break;
+			case State.Lifting:
+				SetColor(Color.blue);
+				break;
+		}
+		currentState = state;
+	}
+
 	void Start()
 	{
 		lastPheromonePos = transform.position;
-		currentState = State.SearchingForFood;
 		transform.eulerAngles = Vector3.forward * Random.value * 360;
 		currentForwardDir = transform.right;
 		currentPosition = transform.position;
@@ -133,8 +156,7 @@ public class Ant : MonoBehaviour
 		Kc += Random.Range(-0.05f, 0.05f);
 		Find += Random.Range(-0.1f, 0.1f);
 		spriteRenderer = GetComponentInChildren<SpriteRenderer>();
-		SetColor(Color.black);
-		Debug.Log("The sprite renderer is: " + spriteRenderer.sprite);
+		ChangeState(State.SearchingForFood);
 	}
 
 	void Update()
@@ -173,13 +195,13 @@ public class Ant : MonoBehaviour
 			HandleMovement();
 		}
 
-		    // UpdateVisualizations(); // change ants colorsd based on state
+		// UpdateVisualizations(); // change ants colorsd based on state
 	}
 
 	public void SetColor(Color newColor)
-    {
-        spriteRenderer.color = newColor;
-    }
+	{
+		spriteRenderer.color = newColor;
+	}
 
 	void ApplyTheoreticalModelForces()
 	{
@@ -477,7 +499,7 @@ public class Ant : MonoBehaviour
 			{
 				deathTime = Time.time + settings.lifetime;
 				Destroy(collectedFood.gameObject);
-				currentState = State.SearchingForFood;
+				ChangeState(State.SearchingForFood);
 				nextDirUpdateTime = 0;
 				StartTurnAround();
 				colony.FoodCollected();
@@ -491,7 +513,11 @@ public class Ant : MonoBehaviour
 	}
 
 	void HandleSearchForFood()
-	{
+	{	
+		if(turnAroundEndTime > Time.time)
+		{
+			return;
+		}
 		if (colony)
 		{
 			if (Vector2.SqrMagnitude(currentPosition - homePos) < colony.radius * colony.radius)
@@ -502,15 +528,17 @@ public class Ant : MonoBehaviour
 		}
 
 		if (targetFood == null)
-		{
+		{	
+			Debug.Log("Looking for torus");
 			int numFoodInRadius = Physics2D.OverlapCircleNonAlloc(perceptionCentre.position, settings.perceptionRadius, foodColliders, torusMask);
 			if (numFoodInRadius > 0)
 			{
+				Debug.Log("Found 1 torus" + numFoodInRadius);
 				Collider2D foodCollider = foodColliders[Random.Range(0, numFoodInRadius)];
 				targetTorus = foodCollider.GetComponent<Torus>();
 				if (targetTorus != null)
 				{
-					// Debug.Log("Found torus at " + targetTorus.currentPosition);
+					Debug.Log("Found torus at " + targetTorus.currentPosition);
 				}
 				targetFood = foodCollider.transform;
 				if (targetFood.CompareTag("SmallFood"))
@@ -537,7 +565,7 @@ public class Ant : MonoBehaviour
 					targetFood.position = head.position;
 					targetFood.SetParent(transform, true);
 					targetFood.gameObject.layer = 0;
-					currentState = State.ReturningHome;
+					ChangeState(State.ReturningHome);
 					nextDirUpdateTime = 0;
 					targetFood = null;
 					StartTurnAround();
@@ -546,8 +574,8 @@ public class Ant : MonoBehaviour
 				else
 				{
 					// Large food (torus) requires collaboration according to model
-					targetFood.gameObject.layer = 0;
-					currentState = State.Informed;
+					//targetFood.gameObject.layer = 0;
+					ChangeState(State.Informed);
 					SetColor(Color.yellow);
 					nOfStates["informed"]++;
 
@@ -609,13 +637,13 @@ public class Ant : MonoBehaviour
 			// Higher attachment rate when torus is moving (as described in paper)
 			if (torusSpeed > 0.1f)
 			{
-				attachmentRate = 0.8f;  // Higher rate when moving K_on
-				detachmentRate = 0.2f;  // Lower detachment when moving K_off
+				attachmentRate = 0.08f;  // Higher rate when moving K_on
+				detachmentRate = 0.002f;  // Lower detachment when moving K_off
 			}
 			else
 			{
 				attachmentRate = 0.4f;  // Lower rate when stationary  K_on
-				detachmentRate = 0.6f;  // Higher detachment when stationary K_off
+				detachmentRate = 0.006f;  // Higher detachment when stationary K_off
 			}
 		}
 	}
@@ -635,7 +663,7 @@ public class Ant : MonoBehaviour
 		if (shouldPull)
 		{
 			// become a puller
-			currentState = State.Pulling;
+			ChangeState(State.Pulling);
 			SetColor(Color.red);
 			nOfStates["puller"]++;
 			Debug.Log("Transitioning to Pulling state");
@@ -643,7 +671,7 @@ public class Ant : MonoBehaviour
 		else
 		{
 			// become a lifter
-			currentState = State.Lifting;
+			ChangeState(State.Lifting);
 			SetColor(Color.blue);
 			nOfStates["lifter"]++;
 			Debug.Log("Transitioning to Lifting state");
@@ -786,13 +814,13 @@ public class Ant : MonoBehaviour
 		{
 			if (currentState == State.Pulling)
 			{
-				currentState = State.Lifting;
+				ChangeState(State.Lifting);
 				nOfStates["puller"]--;
 				nOfStates["lifter"]++;
 			}
 			else
 			{
-				currentState = State.Pulling;
+				ChangeState(State.Pulling);
 				nOfStates["lifter"]--;
 				nOfStates["puller"]++;
 			}
@@ -806,7 +834,7 @@ public class Ant : MonoBehaviour
 	void StartTurnAround(Vector2 returnDir, float randomStrength = 0.2f)
 	{
 		turningAround = true;
-		turnAroundEndTime = Time.time + 1.5f;
+		turnAroundEndTime = Time.time + 4f;
 		Vector2 perpAxis = new Vector2(-returnDir.y, returnDir.x);
 		turnAroundForce = returnDir + perpAxis * (Random.value - 0.5f) * 2 * randomStrength;
 	}
@@ -1128,7 +1156,7 @@ public class Ant : MonoBehaviour
 			if (Random.value < attachmentRate * Time.deltaTime)
 			{
 				// Become informed
-				currentState = State.Informed;
+				ChangeState(State.Informed);
 				nOfStates["informed"]++;
 
 				// Calculate position on torus
@@ -1168,7 +1196,7 @@ public class Ant : MonoBehaviour
 			}
 		}
 	}
-		// Add this method to the Ant class
+	// Add this method to the Ant class
 	public void DetachFromTorus(Torus torus)
 	{
 		Debug.Log("Ant detaching from torus: ");
@@ -1184,7 +1212,7 @@ public class Ant : MonoBehaviour
 				nOfStates["lifter"]--;
 
 			// Set the ant back to searching for food
-			currentState = State.SearchingForFood;
+			ChangeState(State.SearchingForFood);
 			targetTorus = null;
 			targetFood = null;
 
