@@ -95,6 +95,8 @@ public class Ant : MonoBehaviour
 	[Header("Critical Point Parameters")]
 	public float Find_c = 0.5f;          // Critical value for the alignment sensitivity
 
+	private SpriteRenderer spriteRenderer;
+
 
 	public void SetColony(AntColony colony)
 	{
@@ -130,6 +132,9 @@ public class Ant : MonoBehaviour
 		// Small random variation in individual parameters to simulate ant diversity
 		Kc += Random.Range(-0.05f, 0.05f);
 		Find += Random.Range(-0.1f, 0.1f);
+		spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+		SetColor(Color.black);
+		Debug.Log("The sprite renderer is: " + spriteRenderer.sprite);
 	}
 
 	void Update()
@@ -170,6 +175,11 @@ public class Ant : MonoBehaviour
 
 		    // UpdateVisualizations(); // change ants colorsd based on state
 	}
+
+	public void SetColor(Color newColor)
+    {
+        spriteRenderer.color = newColor;
+    }
 
 	void ApplyTheoreticalModelForces()
 	{
@@ -500,7 +510,7 @@ public class Ant : MonoBehaviour
 				targetTorus = foodCollider.GetComponent<Torus>();
 				if (targetTorus != null)
 				{
-					Debug.Log("Found torus at " + targetTorus.currentPosition);
+					// Debug.Log("Found torus at " + targetTorus.currentPosition);
 				}
 				targetFood = foodCollider.transform;
 				if (targetFood.CompareTag("SmallFood"))
@@ -538,6 +548,7 @@ public class Ant : MonoBehaviour
 					// Large food (torus) requires collaboration according to model
 					targetFood.gameObject.layer = 0;
 					currentState = State.Informed;
+					SetColor(Color.yellow);
 					nOfStates["informed"]++;
 
 					// Store current relative position to torus
@@ -625,6 +636,7 @@ public class Ant : MonoBehaviour
 		{
 			// become a puller
 			currentState = State.Pulling;
+			SetColor(Color.red);
 			nOfStates["puller"]++;
 			Debug.Log("Transitioning to Pulling state");
 		}
@@ -632,6 +644,7 @@ public class Ant : MonoBehaviour
 		{
 			// become a lifter
 			currentState = State.Lifting;
+			SetColor(Color.blue);
 			nOfStates["lifter"]++;
 			Debug.Log("Transitioning to Lifting state");
 		}
@@ -1165,7 +1178,7 @@ public class Ant : MonoBehaviour
 		// Only act if this is the torus we're attached to
 		if (torus == targetTorus)
 		{
-			// Reset the ant's state
+			// Reset the ant's state -- remove it
 			if (currentState == State.Informed)
 				nOfStates["informed"]--;
 			else if (currentState == State.Pulling)

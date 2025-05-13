@@ -68,6 +68,15 @@ MonoBehaviour:
   antennaLeft: {fileID: 7677950096222689600}
   antennaRight: {fileID: 975148653644356107}
   perceptionCentre: {fileID: 8820977480597983122}
+  pullingForce: {x: 0, y: 0}
+  Kc: 0.2
+  Find: 1
+  beta: 0.5
+  gamma: 1
+  gamma_rot: 1
+  f0: 1
+  phi_max: 60
+  Find_c: 0.5
 --- !u!70 &-5271800671505135540
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
@@ -157,7 +166,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: 0d60f24fb7f2cb848937b6c3108f9caa, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 7b36b66cc117b8646bee12068857c1a5, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
