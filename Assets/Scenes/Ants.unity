@@ -5126,7 +5126,7 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: eff18608398fc493e9b42e82afe5ae97, type: 2}
   antPrefab: {fileID: 402160823636076130, guid: 6521f716eb1dd42a3b8f86938e1183fa,
     type: 3}
-  numToSpawn: 50
+  numToSpawn: 100
   antHolder: {fileID: 1127930924}
   replenishDead: 1
   homeMarkers: {fileID: 1838622586}
@@ -5136,6 +5136,9 @@ MonoBehaviour:
   numFoodCollected: 0
   timePassed: 0
   numFoodUI: {fileID: 1126900296}
+  spawnRate: 10
+  timeBetweenWaves: 10
+  waveAntSize: 30
 --- !u!4 &592423576
 Transform:
   m_ObjectHideFlags: 0

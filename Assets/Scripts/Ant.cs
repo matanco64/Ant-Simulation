@@ -89,6 +89,7 @@ public class Ant : MonoBehaviour
 	// Improved model variables
 	float effectiveFind;               // Effective alignment sensitivity (adjusted for group size)
 	bool isLeader;                     // Whether this ant is a leader/informed ant
+	float DetachAssessmentTime = 0; // Last time the ant detached from the torus
 
 
 	// Critical point parameters
@@ -252,7 +253,7 @@ public class Ant : MonoBehaviour
 			}
 
 			// Implementation of the external field (informed ant) in the theoretical model
-			float leadershipStrength = isLeader ? 2.0f : 1.0f;
+			float leadershipStrength = currentState == State.Informed ? 2.0f : 1.0f;
 			pullingForce = directionToNest * settings.collisionAvoidSteerStrength * leadershipStrength;
 
 			// Apply force to torus - this implements equation (9) from the paper
@@ -266,7 +267,7 @@ public class Ant : MonoBehaviour
 			float pullMagnitude = f0 * Mathf.Cos(tiltAngle);
 
 			// The effective force that contributes to translation
-			pullingForce = -bodyAxisVector * pullMagnitude;
+			pullingForce = bodyAxisVector * pullMagnitude;
 
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
@@ -529,16 +530,14 @@ public class Ant : MonoBehaviour
 
 		if (targetFood == null)
 		{	
-			Debug.Log("Looking for torus");
 			int numFoodInRadius = Physics2D.OverlapCircleNonAlloc(perceptionCentre.position, settings.perceptionRadius, foodColliders, torusMask);
 			if (numFoodInRadius > 0)
 			{
-				Debug.Log("Found 1 torus" + numFoodInRadius);
 				Collider2D foodCollider = foodColliders[Random.Range(0, numFoodInRadius)];
 				targetTorus = foodCollider.GetComponent<Torus>();
 				if (targetTorus != null)
 				{
-					Debug.Log("Found torus at " + targetTorus.currentPosition);
+					//Debug.Log("Found torus at " + targetTorus.currentPosition);
 				}
 				targetFood = foodCollider.transform;
 				if (targetFood.CompareTag("SmallFood"))
@@ -574,8 +573,8 @@ public class Ant : MonoBehaviour
 				else
 				{
 					// Large food (torus) requires collaboration according to model
-					//targetFood.gameObject.layer = 0;
 					ChangeState(State.Informed);
+					DetachAssessmentTime = Time.time  + GenerateRandomDetachmentTime();
 					SetColor(Color.yellow);
 					nOfStates["informed"]++;
 
@@ -637,13 +636,13 @@ public class Ant : MonoBehaviour
 			// Higher attachment rate when torus is moving (as described in paper)
 			if (torusSpeed > 0.1f)
 			{
-				attachmentRate = 0.08f;  // Higher rate when moving K_on
-				detachmentRate = 0.002f;  // Lower detachment when moving K_off
+				attachmentRate = 0.8f;  // Higher rate when moving K_on
+				detachmentRate = 0.2f;  // Lower detachment when moving K_off
 			}
 			else
 			{
 				attachmentRate = 0.4f;  // Lower rate when stationary  K_on
-				detachmentRate = 0.006f;  // Higher detachment when stationary K_off
+				detachmentRate = 0.6f;  // Higher detachment when stationary K_off
 			}
 		}
 	}
@@ -831,17 +830,19 @@ public class Ant : MonoBehaviour
 		Invoke("EvaluateRoleSwitching", reassessmentRate);
 	}
 
-	void StartTurnAround(Vector2 returnDir, float randomStrength = 0.2f)
+
+
+	void StartTurnAround(Vector2 returnDir, float randomStrength = 0.2f, float turnAroundDuration = 4f)
 	{
 		turningAround = true;
-		turnAroundEndTime = Time.time + 4f;
+		turnAroundEndTime = Time.time + turnAroundDuration;
 		Vector2 perpAxis = new Vector2(-returnDir.y, returnDir.x);
 		turnAroundForce = returnDir + perpAxis * (Random.value - 0.5f) * 2 * randomStrength;
 	}
 
-	void StartTurnAround(float randomStrength = 0.2f)
+	void StartTurnAround(float randomStrength = 0.2f, float turnAroundDuration = 4f)
 	{
-		StartTurnAround(-currentForwardDir, randomStrength);
+		StartTurnAround(-currentForwardDir, randomStrength, turnAroundDuration);
 	}
 
 	void HandlePheromonePlacement()
@@ -1104,8 +1105,17 @@ public class Ant : MonoBehaviour
 	}
 
 	// Improved method to implement the stochastic attachment-detachment dynamics
+
+	float GenerateRandomDetachmentTime()
+	{
+		return Random.Range(2f, 10f);
+	}
 	void ProcessAttachmentDetachment()
 	{
+		if(Time.time < DetachAssessmentTime) {
+			return;
+		}
+		DetachAssessmentTime = Time.time  + GenerateRandomDetachmentTime();
 		if (targetTorus == null)
 			return;
 
@@ -1144,11 +1154,11 @@ public class Ant : MonoBehaviour
 				// Return to searching
 				DetachFromTorus(targetTorus);
 				// Move away from torus
-				StartTurnAround();
+				StartTurnAround(0.5f, GenerateRandomDetachmentTime());
 			}
 		}
 		// For nearby but unattached ants, calculate chance to attach
-		else if (currentState == State.SearchingForFood &&
+		/* else if (currentState == State.SearchingForFood &&
 				targetTorus != null &&
 				Vector2.Distance(currentPosition, targetTorus.currentPosition) < targetTorus.radius * 1.5f)
 		{
@@ -1167,7 +1177,7 @@ public class Ant : MonoBehaviour
 				float assessmentTime = CalculateInformedAssessmentTime();
 				Invoke("TransitionFromInformed", assessmentTime);
 			}
-		}
+		} */
 	}
 
 
@@ -1199,7 +1209,7 @@ public class Ant : MonoBehaviour
 	// Add this method to the Ant class
 	public void DetachFromTorus(Torus torus)
 	{
-		Debug.Log("Ant detaching from torus: ");
+		//Debug.Log("Ant detaching from torus: ");
 		// Only act if this is the torus we're attached to
 		if (torus == targetTorus)
 		{
@@ -1229,11 +1239,6 @@ public class Ant : MonoBehaviour
 		}
 	}
 
-	/* void UpdateVisualizations()
-	{
-		if (currentState == State.Pulling || currentState == State.Lifting){
-			GetComponent<Renderer>().material.color = Color.green;
-		}
-	} */
+
 }
 

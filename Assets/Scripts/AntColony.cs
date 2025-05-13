@@ -21,13 +21,28 @@ public class AntColony : MonoBehaviour {
 	public float timePassed;
 	bool hasPrinted10MinMark;
 	public TextMesh numFoodUI;
+	public float spawnRate = 0.1f;
+	public float timeBetweenWaves = 10f;
+	public int waveAntSize = 30;
 
 	void Start () {
 		Random.InitState (System.Environment.TickCount);
-		for (int i = 0; i < numToSpawn; i++) {
-			SpawnAnt ();
-		}
+		StartCoroutine(SpawnAntsInWaves());
+	
 	}
+
+	IEnumerator SpawnAntsInWaves() {
+    for (int i = 0; i < numToSpawn / waveAntSize + 1; i++) {
+		// Spawn wave of ants
+		for (int j = 0; j < waveAntSize; j++) {
+			SpawnAnt();
+			Debug.Log("Spawning Ant");
+			yield return new WaitForSeconds(spawnRate);
+		}
+        yield return new WaitForSeconds(timeBetweenWaves); // Wait before spawning next ant
+    }
+	//  yield return new WaitForSeconds(timeBetweenWaves);
+}
 
 	void Update () {
 		timePassed = Time.timeSinceLevelLoad;
@@ -37,12 +52,12 @@ public class AntColony : MonoBehaviour {
 		}
 
 		int numDead = numToSpawn - antHolder.childCount;
-		if (Time.time > nextPossibleRespawnTime) {
-			nextPossibleRespawnTime = Time.time;
-			if (numDead > 0 && replenishDead) {
-				SpawnAnt ();
-			}
-		}
+		// if (Time.time > nextPossibleRespawnTime) {
+		// 	nextPossibleRespawnTime = Time.time;
+		// 	if (numDead > 0 && replenishDead) {
+		// 		SpawnAnt ();
+		// 	}
+		// }
 	}
 
 	void SpawnAnt () {
