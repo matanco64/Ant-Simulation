@@ -36,7 +36,6 @@ public class AntColony : MonoBehaviour {
 		// Spawn wave of ants
 		for (int j = 0; j < waveAntSize; j++) {
 			SpawnAnt();
-			Debug.Log("Spawning Ant");
 			yield return new WaitForSeconds(spawnRate);
 		}
         yield return new WaitForSeconds(timeBetweenWaves); // Wait before spawning next ant

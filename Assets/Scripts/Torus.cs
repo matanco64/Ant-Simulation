@@ -1,12 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.IO;
 
 public class Torus : MonoBehaviour
 {
     public AntSettings settings;
     public Transform center;
-    public float radius = 1f;
+    public float radius = 1.5f;
+    public float distanceToWallGap = 0.02f;
     public LayerMask homeMask;
     public LayerMask collisionMask;
 
@@ -197,19 +199,21 @@ public class Torus : MonoBehaviour
         currentPosition += currentVelocity * Time.deltaTime;
 
         // Cast to detect wall collision
-        RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius, currentVelocity.normalized, currentVelocity.magnitude * Time.deltaTime, LayerMask.GetMask("Wall"));
+        RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius+ distanceToWallGap, currentVelocity.normalized, currentVelocity.magnitude * Time.deltaTime, LayerMask.GetMask("Wall"));
 
         if (hit)
         {
+            Debug.Log("Collision detected with: " + hit.collider.name + ", currentVelocity: " + currentVelocity.magnitude + ", times timedela: " + currentVelocity.magnitude * Time.deltaTime);
+            // LogWithScreenshot();
             Vector2 normal = hit.normal;
 
-            // --- 1. Correct velocity (cancel into-wall motion) ---
-            float intoWall = Vector2.Dot(currentVelocity, normal);
-            if (intoWall < 0f)
-            {
-                currentVelocity -= normal * intoWall * velocityCorrectionStrength;
-            }
-
+            // // --- 1. Correct velocity (cancel into-wall motion) ---
+            // float intoWall = Vector2.Dot(currentVelocity, normal);
+            // if (intoWall < 0f)
+            // {
+            //     currentVelocity = - normal * intoWall * velocityCorrectionStrength;
+            // }
+            currentVelocity = Vector2.zero; // Reset velocity to zero to stop movement
             // --- 2. Correct position (push out gently) ---
             float distanceToWall = Vector2.Dot(currentPosition - hit.point, normal);
             float desiredDistance = radius * safeDistanceMultiplier;
@@ -221,6 +225,21 @@ public class Torus : MonoBehaviour
             }
         }
     }
+
+    private static void LogWithScreenshot()
+    {
+        string filename, fullPath;
+        filename = $"debug_frame_{Time.frameCount}.png";
+        // create a directory if it doesn't exist
+        if (!Directory.Exists(Application.dataPath + "\\..\\DebugFrames"))
+        {
+            Directory.CreateDirectory(Application.dataPath + "\\..\\DebugFrames");
+        }
+        fullPath = System.IO.Path.Combine(Application.dataPath, "..", "DebugFrames", filename);
+        ScreenCapture.CaptureScreenshot(fullPath);
+        Debug.Log($"[Screenshot] {filename} saved.\nPath: {fullPath}");
+    }
+
 
     void CheckColonyEntry()
     {

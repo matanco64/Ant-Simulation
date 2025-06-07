@@ -100,7 +100,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 0.5
+  m_Radius: 1.5
 --- !u!114 &6276012588665048041
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -116,6 +116,7 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: eff18608398fc493e9b42e82afe5ae97, type: 2}
   center: {fileID: 9180137372315387742}
   radius: 1.5
+  distanceToWallGap: 0.1
   homeMask:
     serializedVersion: 2
     m_Bits: 2048
