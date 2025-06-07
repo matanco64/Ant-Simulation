@@ -18,19 +18,20 @@ MonoBehaviour:
   targetSteerStrength: 3
   randomSteerStrength: 0.6
   randomSteerMaxDuration: 1
-  dstBetweenMarkers: 0.7
-  pheremoneEvaporateTime: 45
   timeBetweenDirUpdate: 0.15
   collisionRadius: 0.15
-  antennaDst: 0.25
-  homingForce: 0
-  lifetime: 150
+  timeBetweenRandomSteers: 0.5
+  dstBetweenMarkers: 0.7
+  pheromoneEvaporateTime: 45
+  pheromoneRunOutTime: 100
+  pheromoneWeight: 1
+  perceptionRadius: 0.1
   useHomeMarkers: 1
   useFoodMarkers: 1
-  useDeath: 0
-  pheremoneRunOutTime: 30
-  pheremoneWeight: 1
-  perceptionRad: 2.5
   sensorSize: 0.75
   sensorDst: 1.25
   sensorSpacing: 1
+  antennaDst: 0.25
+  lifetime: 150
+  useDeath: 0
+  antForce: 2

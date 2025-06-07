@@ -856,7 +856,7 @@ public class Ant : MonoBehaviour
 				colony.homeMarkers.Add(transform.position, t);
 				lastPheromonePos = transform.position + (Vector3)Random.insideUnitCircle * settings.dstBetweenMarkers * 0.2f;
 			}
-			else if ((currentState == State.ReturningHome || currentState == State.Informed || currentState == State.Pulling || currentState == State.Lifting)
+			else if ((currentState != State.SearchingForFood)
 			 && settings.useFoodMarkers && (Time.time - leftFoodTime) < settings.pheromoneRunOutTime)
 			{
 				float t = 1 - (Time.time - leftFoodTime) / settings.pheromoneRunOutTime;

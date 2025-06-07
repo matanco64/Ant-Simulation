@@ -5104,6 +5104,7 @@ GameObject:
   m_Component:
   - component: {fileID: 592423576}
   - component: {fileID: 592423575}
+  - component: {fileID: 592423577}
   m_Layer: 11
   m_Name: Ant Colony
   m_TagString: Untagged
@@ -5158,6 +5159,19 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &592423577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 592423572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 304edcb086e4d0a418365ee26be42f5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  initialTimeScale: 5
 --- !u!1 &635625776
 GameObject:
   m_ObjectHideFlags: 0
@@ -10102,7 +10116,6 @@ ParticleSystemRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 4ae50dc4904a44898a5167f2cbf44ce8, type: 2}
-  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -10579,11 +10592,11 @@ MonoBehaviour:
   autoRefreshNoise: 0
   useBrush: 1
   brushWorldRadius: 0.75
-  brushMinMax: {x: 0.5, y: 1}
+  brushMinMax: {x: 0.5, y: 10}
   brushStrength: 5
   brush: {fileID: 825386571}
   brushRadiusInputSensitivity: 0.8
-  loadFile: {fileID: 4900000, guid: 53a757291a6904dc5babf7504f890c90, type: 3}
+  loadFile: {fileID: 4900000, guid: 66db489a852c6284bb08ceca8b1c7408, type: 3}
   loadOnStart: 1
 --- !u!4 &1664453873
 Transform:
@@ -10646,7 +10659,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1694517054}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -9.4, y: -2.6, z: 0}
+  m_LocalPosition: {x: -22.9, y: 11.17, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
