@@ -100,7 +100,7 @@ CircleCollider2D:
   m_UsedByComposite: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Radius: 10
+  m_Radius: 0.5
 --- !u!114 &6276012588665048041
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -122,4 +122,16 @@ MonoBehaviour:
   collisionMask:
     serializedVersion: 2
     m_Bits: 4096
+  totForce: {x: 0, y: 0}
   currentPosition: {x: 0, y: 0}
+  staticFrictionThreshold: 5
+  baseKineticFriction: 10
+  maxVelocity: 1
+  gamma: 5
+  gamma_rot: 10
+  dampingFactor: 0.98
+  collisionBounciness: 0.2
+  directionToHome: {x: 0, y: 0}
+  wallPushSpeed: 10
+  velocityCorrectionStrength: 0.5
+  safeDistanceMultiplier: 1.01
