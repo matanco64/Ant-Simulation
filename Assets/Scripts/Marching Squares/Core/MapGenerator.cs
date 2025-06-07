@@ -64,13 +64,16 @@ public class MapGenerator : MonoBehaviour {
 
 	}
 
-	[ContextMenu ("Save")]
-	void Save () {
-		SaveData saveData = new SaveData (fullMap);
-		string saveString = JsonUtility.ToJson (saveData);
-		StreamWriter writer = new StreamWriter ("./Assets/SavedMap/Map.txt");
-		writer.Write (saveString);
-		writer.Close ();
+	[ContextMenu("Save")]
+	void Save()
+	{
+		Debug.Log("Saving map to file");
+		SaveData saveData = new SaveData(fullMap);
+		string saveString = JsonUtility.ToJson(saveData);
+		StreamWriter writer = new StreamWriter("./Assets/SavedMap/Map3.txt");
+		writer.Write(saveString);
+		writer.Close();
+		Debug.Log("Map saved to file");
 	}
 
 	void Init () {
