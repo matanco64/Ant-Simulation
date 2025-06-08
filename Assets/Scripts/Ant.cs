@@ -78,7 +78,7 @@ public class Ant : MonoBehaviour
 	public float beta = 0.5f;            // Friction reduction factor due to lifters
 	public float gamma = 1.0f;           // Mass response coefficient
 	public float gamma_rot = 1.0f;       // Rotational response coefficient
-	public float f0 = 1.0f;              // Force magnitude applied by a single puller
+	public float f0 = 6.0f;              // Force magnitude applied by a single puller
 	public float phi_max = 60f;          // Maximum tilt angle in degrees (constrains orientation)
 										 // Variables for theoretical model
 	float tiltAngle;                   // φ in the paper - angle between radial direction and body axis
@@ -267,7 +267,8 @@ public class Ant : MonoBehaviour
 			float pullMagnitude = f0 * Mathf.Cos(tiltAngle);
 
 			// The effective force that contributes to translation
-			pullingForce = bodyAxisVector * pullMagnitude;
+			pullingForce = -bodyAxisVector * f0 * 20;
+			Debug.Log($"Pulling force: {pullingForce}, Tilt angle: {tiltAngle * Mathf.Rad2Deg} degrees");
 
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
@@ -514,8 +515,8 @@ public class Ant : MonoBehaviour
 	}
 
 	void HandleSearchForFood()
-	{	
-		if(turnAroundEndTime > Time.time)
+	{
+		if (turnAroundEndTime > Time.time)
 		{
 			return;
 		}
@@ -529,21 +530,27 @@ public class Ant : MonoBehaviour
 		}
 
 		if (targetFood == null)
-		{	
+		{
 			int numFoodInRadius = Physics2D.OverlapCircleNonAlloc(perceptionCentre.position, settings.perceptionRadius, foodColliders, torusMask);
 			if (numFoodInRadius > 0)
 			{
 				Collider2D foodCollider = foodColliders[Random.Range(0, numFoodInRadius)];
 				targetTorus = foodCollider.GetComponent<Torus>();
-				if (targetTorus != null)
+				Vector2 foodPos = targetTorus.currentPosition;
+				RaycastHit2D hit = Physics2D.Raycast(currentPosition, (foodPos - currentPosition).normalized, Vector2.Distance(currentPosition, foodPos), collisionMask);
+				if (!hit)
 				{
-					//Debug.Log("Found torus at " + targetTorus.currentPosition);
+					if (targetTorus != null)
+					{
+						//Debug.Log("Found torus at " + targetTorus.currentPosition);
+					}
+					targetFood = foodCollider.transform;
+					if (targetFood.CompareTag("SmallFood"))
+					{
+						targetFood.gameObject.layer = 0;
+					}
 				}
-				targetFood = foodCollider.transform;
-				if (targetFood.CompareTag("SmallFood"))
-				{
-					targetFood.gameObject.layer = 0;
-				}
+
 			}
 		}
 
@@ -574,7 +581,7 @@ public class Ant : MonoBehaviour
 				{
 					// Large food (torus) requires collaboration according to model
 					ChangeState(State.Informed);
-					DetachAssessmentTime = Time.time  + GenerateRandomDetachmentTime();
+					DetachAssessmentTime = Time.time + GenerateRandomDetachmentTime();
 					SetColor(Color.yellow);
 					nOfStates["informed"]++;
 
@@ -849,7 +856,7 @@ public class Ant : MonoBehaviour
 	{
 		if (Vector2.Distance(transform.position, lastPheromonePos) > settings.dstBetweenMarkers)
 		{
-			if (currentState == State.SearchingForFood && settings.useHomeMarkers && (Time.time - leftHomeTime) < settings.pheromoneRunOutTime)
+			if (currentState == State.SearchingForFood && settings.useHomeMarkers) // && (Time.time - leftHomeTime) < settings.pheromoneRunOutTime)
 			{
 				float t = 1 - (Time.time - leftHomeTime) / settings.pheromoneRunOutTime;
 				t = Mathf.Lerp(0.5f, 1, t);
@@ -857,7 +864,7 @@ public class Ant : MonoBehaviour
 				lastPheromonePos = transform.position + (Vector3)Random.insideUnitCircle * settings.dstBetweenMarkers * 0.2f;
 			}
 			else if ((currentState != State.SearchingForFood)
-			 && settings.useFoodMarkers && (Time.time - leftFoodTime) < settings.pheromoneRunOutTime)
+			 && settings.useFoodMarkers) // && (Time.time - leftFoodTime) < settings.pheromoneRunOutTime)
 			{
 				float t = 1 - (Time.time - leftFoodTime) / settings.pheromoneRunOutTime;
 				t = Mathf.Lerp(0.5f, 1, t);
@@ -1112,10 +1119,11 @@ public class Ant : MonoBehaviour
 	}
 	void ProcessAttachmentDetachment()
 	{
-		if(Time.time < DetachAssessmentTime) {
+		if (Time.time < DetachAssessmentTime)
+		{
 			return;
 		}
-		DetachAssessmentTime = Time.time  + GenerateRandomDetachmentTime();
+		DetachAssessmentTime = Time.time + GenerateRandomDetachmentTime();
 		if (targetTorus == null)
 			return;
 

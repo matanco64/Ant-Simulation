@@ -8,7 +8,7 @@ public class Torus : MonoBehaviour
     public AntSettings settings;
     public Transform center;
     public float radius = 1.5f;
-    public float distanceToWallGap = 0.02f;
+    public float distanceToWallGap = 0.1f;
     public LayerMask homeMask;
     public LayerMask collisionMask;
 
@@ -47,7 +47,7 @@ public class Torus : MonoBehaviour
     // Parameters
     [SerializeField] private float wallPushSpeed = 10f;
     [SerializeField] private float velocityCorrectionStrength = 0.5f;
-    [SerializeField] private float safeDistanceMultiplier = 1.01f;
+    [SerializeField] private float safeDistanceMultiplier = 1.02f;
 
     void Start()
     {
@@ -98,15 +98,16 @@ public class Torus : MonoBehaviour
         // Handle collisions with environment
 
         // Update position and rotation
+        // Clear forces for next frame
+        forcesFromAnts.Clear();
+
+        HandleCollisions();
         lastPosition = currentPosition;
         currentPosition += currentVelocity * Time.deltaTime;
         transform.position = currentPosition;
         transform.Rotate(0, 0, angularVelocity * Mathf.Rad2Deg * Time.deltaTime);
 
-        // Clear forces for next frame
-        forcesFromAnts.Clear();
 
-        HandleCollisions();
     }
     public void ApplyForce(Vector2 force)
     {
@@ -175,54 +176,105 @@ public class Torus : MonoBehaviour
         angularVelocity = netTorque / gamma_rot;
 
         // Detect if stuck
-        if (Vector2.Distance(currentPosition, lastPosition) < 0.005f && totForce.magnitude > 1f)
-        {
-            stuckTimer += Time.deltaTime;
-            if (stuckTimer > 0.5f)
-            {
-                isStuck = true;
-                currentVelocity += (Vector2)Random.insideUnitCircle * 0.5f;
-                stuckTimer = 0f;
-                isStuck = false;
-            }
-        }
-        else
-        {
-            stuckTimer = 0f;
-        }
+        // if (Vector2.Distance(currentPosition, lastPosition) < 0.005f && totForce.magnitude > 1f)
+        // {
+        //     stuckTimer += Time.deltaTime;
+        //     if (stuckTimer > 0.5f)
+        //     {
+        //         isStuck = true;
+        //         currentVelocity += (Vector2)Random.insideUnitCircle * 0.5f;
+        //         stuckTimer = 0f;
+        //         isStuck = false;
+        //     }
+        // }
+        // else
+        // {
+        //     stuckTimer = 0f;
+        // }
     }
+
+    // void HandleCollisions()
+    // {
+
+    //     // Update currentPosition manually
+    //     currentPosition += currentVelocity * Time.deltaTime;
+
+    //     // Cast to detect wall collision
+    //     RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius+ distanceToWallGap, currentVelocity.normalized, currentVelocity.magnitude * Time.deltaTime, LayerMask.GetMask("Wall"));
+
+    //     if (hit)
+    //     {
+    //         Debug.Log("Collision detected with: " + hit.collider.name + ", currentVelocity: " + currentVelocity.magnitude + ", times timedela: " + currentVelocity.magnitude * Time.deltaTime);
+    //         // LogWithScreenshot();
+    //         Vector2 normal = hit.normal;
+
+    //         // // --- 1. Correct velocity (cancel into-wall motion) ---
+    //         // float intoWall = Vector2.Dot(currentVelocity, normal);
+    //         // if (intoWall < 0f)
+    //         // {
+    //         //     currentVelocity = - normal * intoWall * velocityCorrectionStrength;
+    //         // }
+    //         currentVelocity = Vector2.zero; // Reset velocity to zero to stop movement
+    //                                         // --- 2. Correct position (push out gently) ---
+    //                                         //float distanceToWall = Vector2.Dot(currentPosition - hit.point, normal
+    //         float distanceToWall = Vector2.Distance(currentPosition, hit.point) - radius;
+    //         float desiredDistance = radius * safeDistanceMultiplier;
+    //         float penetrationDepth = desiredDistance - distanceToWall;
+
+    //         if (penetrationDepth > 0f)
+    //         {
+    //             // currentPosition += normal.normalized * penetrationDepth;
+    //         }
+    //     }
+    // }
 
     void HandleCollisions()
     {
-        
-        // Update currentPosition manually
-        currentPosition += currentVelocity * Time.deltaTime;
+        // Predict next position
+        Vector2 nextPosition = currentPosition + currentVelocity * Time.deltaTime;
+        Vector2 moveDir = (nextPosition - currentPosition).normalized;
+        float moveDist = Vector2.Distance(currentPosition, nextPosition);
 
-        // Cast to detect wall collision
-        RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius+ distanceToWallGap, currentVelocity.normalized, currentVelocity.magnitude * Time.deltaTime, LayerMask.GetMask("Wall"));
+        // Handle multiple collisions by iterating up to a max number of attempts
+        int maxIterations = 3;
+        int iteration = 0;
+        bool collided = false;
 
-        if (hit)
+        while (iteration < maxIterations && moveDist > 0.0001f)
         {
-            Debug.Log("Collision detected with: " + hit.collider.name + ", currentVelocity: " + currentVelocity.magnitude + ", times timedela: " + currentVelocity.magnitude * Time.deltaTime);
-            // LogWithScreenshot();
-            Vector2 normal = hit.normal;
-
-            // // --- 1. Correct velocity (cancel into-wall motion) ---
-            // float intoWall = Vector2.Dot(currentVelocity, normal);
-            // if (intoWall < 0f)
-            // {
-            //     currentVelocity = - normal * intoWall * velocityCorrectionStrength;
-            // }
-            currentVelocity = Vector2.zero; // Reset velocity to zero to stop movement
-            // --- 2. Correct position (push out gently) ---
-            float distanceToWall = Vector2.Dot(currentPosition - hit.point, normal);
-            float desiredDistance = radius * safeDistanceMultiplier;
-            float penetrationDepth = desiredDistance - distanceToWall;
-
-            if (penetrationDepth > 0f)
+            RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius + distanceToWallGap, moveDir, moveDist, LayerMask.GetMask("Wall"));
+            if (hit)
             {
-                currentPosition += normal * penetrationDepth * wallPushSpeed * Time.deltaTime;
+                collided = true;
+                Debug.Log("Collision detected with: " + hit.collider.name + ", currentVelocity: " + currentVelocity.magnitude + ", times timedela: " + currentVelocity.magnitude * Time.deltaTime);
+
+                // Move to the point of contact, minus a small offset to prevent sticking
+                currentPosition = hit.point + hit.normal * (radius * safeDistanceMultiplier);
+
+                // Project velocity along the wall (slide)
+                currentVelocity = Vector2.Reflect(currentVelocity, hit.normal) * collisionBounciness;
+                // Optionally, dampen velocity further to prevent jitter
+                // currentVelocity *= 0.7f;
+
+                // Prepare for next iteration in case of multiple collisions
+                nextPosition = currentPosition + currentVelocity * Time.deltaTime;
+                moveDir = (nextPosition - currentPosition).normalized;
+                moveDist = Vector2.Distance(currentPosition, nextPosition);
+                iteration++;
+
             }
+            else
+            {
+                // No collision, move to next position
+                break;
+            }
+            currentPosition = nextPosition;
+        }
+
+        // If no collision, just move as normal
+        if (!collided)
+        {
+            currentPosition = nextPosition;
         }
     }
 
@@ -243,7 +295,7 @@ public class Torus : MonoBehaviour
 
     void CheckColonyEntry()
     {
-       
+
         // Check if we're inside a colony
         Collider2D homeCollider = Physics2D.OverlapCircle(currentPosition, radius * 1.05f, homeMask);
 
