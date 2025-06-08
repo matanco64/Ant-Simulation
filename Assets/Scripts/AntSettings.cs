@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 [CreateAssetMenu()]
 public class AntSettings : ScriptableObject
@@ -37,4 +38,20 @@ public class AntSettings : ScriptableObject
 
 	[Header("Forces")]
 	public float antForce = 2;
+
+	// add start function to init settings from command line arguments
+	private void OnEnable()
+	{
+
+		string[] args = Environment.GetCommandLineArgs();
+
+        foreach (string arg in args) {
+			if (arg.StartsWith("-maxSpeed"))
+			{
+				string[] parts = arg.Split(' ');
+				if (parts.Length > 1) float.TryParse(parts[1], out maxSpeed);
+			}
+        }
+	}
+	
 }

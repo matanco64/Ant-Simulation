@@ -5105,6 +5105,7 @@ GameObject:
   - component: {fileID: 592423576}
   - component: {fileID: 592423575}
   - component: {fileID: 592423577}
+  - component: {fileID: 592423578}
   m_Layer: 11
   m_Name: Ant Colony
   m_TagString: Untagged
@@ -5138,8 +5139,8 @@ MonoBehaviour:
   timePassed: 0
   numFoodUI: {fileID: 1126900296}
   spawnRate: 0.1
-  timeBetweenWaves: 4
-  waveAntSize: 100
+  timeBetweenWaves: 5
+  waveAntSize: 10
 --- !u!4 &592423576
 Transform:
   m_ObjectHideFlags: 0
@@ -5156,6 +5157,7 @@ Transform:
   - {fileID: 1602077971}
   - {fileID: 1127930924}
   - {fileID: 1426433251}
+  - {fileID: 824775787}
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -5172,6 +5174,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   initialTimeScale: 5
+  stopAfterSeconds: 0
+--- !u!114 &592423578
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 592423572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33a185d437a66dd40bd4683868e71882, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &635625776
 GameObject:
   m_ObjectHideFlags: 0
@@ -5216,6 +5231,85 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &824775786
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 824775787}
+  - component: {fileID: 824775789}
+  - component: {fileID: 824775788}
+  m_Layer: 11
+  m_Name: Agent
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &824775787
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 824775786}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 592423576}
+  m_RootOrder: 4
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &824775788
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 824775786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88b6042bc9a5d4aa58d931eae49442e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  agentParameters:
+    maxStep: 0
+  hasUpgradedFromAgentParameters: 1
+  MaxStep: 0
+--- !u!114 &824775789
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 824775786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d1c4e0b1822b495aa52bc52839ecb30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_BrainParameters:
+    VectorObservationSize: 1
+    NumStackedVectorObservations: 1
+    m_ActionSpec:
+      m_NumContinuousActions: 0
+      BranchSizes: 01000000
+    VectorActionSize: 01000000
+    VectorActionDescriptions: []
+    VectorActionSpaceType: 0
+    hasUpgradedBrainParametersWithActionSpec: 1
+  m_Model: {fileID: 0}
+  m_InferenceDevice: 0
+  m_BehaviorType: 0
+  m_BehaviorName: AntAgent
+  TeamId: 0
+  m_UseChildSensors: 1
+  m_UseChildActuators: 1
+  m_ObservableAttributeHandling: 0
 --- !u!1 &825386570
 GameObject:
   m_ObjectHideFlags: 0
@@ -10596,7 +10690,7 @@ MonoBehaviour:
   brushStrength: 5
   brush: {fileID: 825386571}
   brushRadiusInputSensitivity: 0.8
-  loadFile: {fileID: 4900000, guid: 66db489a852c6284bb08ceca8b1c7408, type: 3}
+  loadFile: {fileID: 4900000, guid: 99079ebc1fc9a264ba34389563df319d, type: 3}
   loadOnStart: 1
 --- !u!4 &1664453873
 Transform:
@@ -10659,7 +10753,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1694517054}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -23.79, y: 11.17, z: 0}
+  m_LocalPosition: {x: -9.7, y: 7.9, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

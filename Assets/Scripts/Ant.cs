@@ -78,7 +78,7 @@ public class Ant : MonoBehaviour
 	public float beta = 0.5f;            // Friction reduction factor due to lifters
 	public float gamma = 1.0f;           // Mass response coefficient
 	public float gamma_rot = 1.0f;       // Rotational response coefficient
-	public float f0 = 6.0f;              // Force magnitude applied by a single puller
+	public float f0 = 2.0f;              // Force magnitude applied by a single puller
 	public float phi_max = 60f;          // Maximum tilt angle in degrees (constrains orientation)
 										 // Variables for theoretical model
 	float tiltAngle;                   // φ in the paper - angle between radial direction and body axis
@@ -268,7 +268,6 @@ public class Ant : MonoBehaviour
 
 			// The effective force that contributes to translation
 			pullingForce = -bodyAxisVector * f0 * 20;
-			Debug.Log($"Pulling force: {pullingForce}, Tilt angle: {tiltAngle * Mathf.Rad2Deg} degrees");
 
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);

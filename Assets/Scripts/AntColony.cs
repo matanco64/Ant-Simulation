@@ -25,9 +25,19 @@ public class AntColony : MonoBehaviour {
 	public float timeBetweenWaves = 10f;
 	public int waveAntSize = 30;
 
-	void Start () {
-		Random.InitState (System.Environment.TickCount);
+	void Start()
+	{
+		Random.InitState(System.Environment.TickCount);
 		StartCoroutine(SpawnAntsInWaves());
+		
+		string[] args = System.Environment.GetCommandLineArgs();
+
+        foreach (string arg in args) {
+            if (arg.StartsWith("-antCount")) {
+                string[] parts = arg.Split(' ');
+                if (parts.Length > 1) int.TryParse(parts[1], out numToSpawn);
+            }
+        }
 	
 	}
 
@@ -43,11 +53,13 @@ public class AntColony : MonoBehaviour {
 	//  yield return new WaitForSeconds(timeBetweenWaves);
 }
 
-	void Update () {
+	void Update()
+	{
 		timePassed = Time.timeSinceLevelLoad;
-		if (!hasPrinted10MinMark && timePassed > 60 * 10) {
+		if (!hasPrinted10MinMark && timePassed > 60 * 10)
+		{
 			hasPrinted10MinMark = true;
-			Debug.Log ("Num food collected: " + numFoodCollected);
+			Debug.Log("Num food collected: " + numFoodCollected);
 		}
 
 		int numDead = numToSpawn - antHolder.childCount;
@@ -57,6 +69,7 @@ public class AntColony : MonoBehaviour {
 		// 		SpawnAnt ();
 		// 	}
 		// }
+		SimulationManager.instance.UpdateAntCount(antHolder.childCount);
 	}
 
 	void SpawnAnt () {

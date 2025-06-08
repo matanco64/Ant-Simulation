@@ -8,7 +8,7 @@ public class Torus : MonoBehaviour
     public AntSettings settings;
     public Transform center;
     public float radius = 1.5f;
-    public float distanceToWallGap = 0.1f;
+    public float distanceToWallGap = 0.4f;
     public LayerMask homeMask;
     public LayerMask collisionMask;
 
@@ -47,7 +47,7 @@ public class Torus : MonoBehaviour
     // Parameters
     [SerializeField] private float wallPushSpeed = 10f;
     [SerializeField] private float velocityCorrectionStrength = 0.5f;
-    [SerializeField] private float safeDistanceMultiplier = 1.02f;
+    [SerializeField] private float safeDistanceMultiplier = 2f;
 
     void Start()
     {
@@ -106,7 +106,7 @@ public class Torus : MonoBehaviour
         currentPosition += currentVelocity * Time.deltaTime;
         transform.position = currentPosition;
         transform.Rotate(0, 0, angularVelocity * Mathf.Rad2Deg * Time.deltaTime);
-
+        SimulationManager.instance.AddTorusDataPoint(currentPosition);
 
     }
     public void ApplyForce(Vector2 force)
@@ -240,16 +240,16 @@ public class Torus : MonoBehaviour
         int iteration = 0;
         bool collided = false;
 
-        while (iteration < maxIterations && moveDist > 0.0001f)
+        while (iteration < maxIterations) //moveDist > 0.0001f)
         {
-            RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius + distanceToWallGap, moveDir, moveDist, LayerMask.GetMask("Wall"));
+            RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius * safeDistanceMultiplier, moveDir, moveDist, LayerMask.GetMask("Wall"));
             if (hit)
             {
                 collided = true;
-                Debug.Log("Collision detected with: " + hit.collider.name + ", currentVelocity: " + currentVelocity.magnitude + ", times timedela: " + currentVelocity.magnitude * Time.deltaTime);
 
                 // Move to the point of contact, minus a small offset to prevent sticking
                 currentPosition = hit.point + hit.normal * (radius * safeDistanceMultiplier);
+                
 
                 // Project velocity along the wall (slide)
                 currentVelocity = Vector2.Reflect(currentVelocity, hit.normal) * collisionBounciness;
@@ -261,7 +261,6 @@ public class Torus : MonoBehaviour
                 moveDir = (nextPosition - currentPosition).normalized;
                 moveDist = Vector2.Distance(currentPosition, nextPosition);
                 iteration++;
-
             }
             else
             {
@@ -379,5 +378,7 @@ public class Torus : MonoBehaviour
         // Deactivate and destroy after fading out
         gameObject.SetActive(false);
         Destroy(gameObject, 0.1f);
+        SimulationManager.instance.AddTorusDataPoint(currentPosition);
+        SimulationManager.instance.endSimulation(true);
     }
 }
