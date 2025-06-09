@@ -29,16 +29,21 @@ public class AntColony : MonoBehaviour {
 	{
 		Random.InitState(System.Environment.TickCount);
 		StartCoroutine(SpawnAntsInWaves());
-		
+
 		string[] args = System.Environment.GetCommandLineArgs();
 
-        foreach (string arg in args) {
-            if (arg.StartsWith("-antCount")) {
-                string[] parts = arg.Split(' ');
-                if (parts.Length > 1) int.TryParse(parts[1], out numToSpawn);
-            }
-        }
+		SimulationManager.instance.AddColonyPosition(transform.position);
+
+		foreach (string arg in args)
+		{
+			if (arg.StartsWith("-antCount"))
+			{
+				string[] parts = arg.Split(' ');
+				if (parts.Length > 1) int.TryParse(parts[1], out numToSpawn);
+			}
+		}
 	
+
 	}
 
 	IEnumerator SpawnAntsInWaves() {

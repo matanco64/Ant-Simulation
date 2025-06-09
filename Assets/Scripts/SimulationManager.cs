@@ -3,15 +3,17 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public class SimRunData {
+public class SimRunData
+{
     public string runId;
     public float duration;
     public bool didSucceed;
     public float timeScale;
     public int antCount;
     public List<Vector2> torusPositions;
-}
 
+    public Vector2 ant_colony_position;
+}
 
 
 public class SimulationManager : MonoBehaviour
@@ -38,6 +40,7 @@ public class SimulationManager : MonoBehaviour
             timeScale = Time.timeScale,
             antCount = 0,
             torusPositions = new List<Vector2>()
+            
         };
     }
 
@@ -50,6 +53,10 @@ public class SimulationManager : MonoBehaviour
     public void AddTorusDataPoint(Vector2 position)
     {
         runData.torusPositions.Add(position);
+    }
+    public void AddColonyPosition(Vector2 position)
+    {
+        runData.ant_colony_position = position;
     }
 
     public void endSimulation(bool didSucceed)
@@ -67,7 +74,6 @@ public class SimulationManager : MonoBehaviour
 
     public void SaveRunData(SimRunData runData)
     {
-
         string json = JsonUtility.ToJson(runData, true);
         System.IO.File.WriteAllText("sim_output.json", json);
     }

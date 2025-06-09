@@ -158,6 +158,18 @@ public class Ant : MonoBehaviour
 		Find += Random.Range(-0.1f, 0.1f);
 		spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 		ChangeState(State.SearchingForFood);
+
+		// Parse command line arguments for simulation
+		string[] args = System.Environment.GetCommandLineArgs();
+
+		foreach (string arg in args)
+		{
+			if (arg.StartsWith("-kc"))
+			{
+				string[] parts = arg.Split(' ');
+				if (parts.Length > 1) float.TryParse(parts[1], out Kc);
+			}
+		}
 	}
 
 	void Update()
