@@ -285,23 +285,7 @@ public class Ant : MonoBehaviour
 			targetTorus.ApplyForce(pullingForce);
 		}
 
-		else if (currentState == State.Lifting)
-		{
-			// Implementation of equation (11) from the paper
-			// Lifters reduce friction rather than directly applying force
-
-			// Calculate the effective lifting force based on the number of lifters
-			float liftingContribution = beta; // Each lifter reduces friction by beta
-
-			// Apply a small upward force to simulate friction reduction
-			// pullingForce = Vector2.up * settings.collisionAvoidSteerStrength * 0.3f;
-
-			// Apply this force to the torus
-			// targetTorus.ApplyForce(pullingForce);
-
-			// The actual friction reduction is handled globally via nOfStates["lifter"]
-		}
-		if (currentState == State.Pulling)
+		else if (currentState == State.Pulling)
 		{
 			// For pullers, apply force according to equation (9)
 			// f_m = Σ n^i F_i - f_kin
@@ -320,22 +304,7 @@ public class Ant : MonoBehaviour
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
 		}
-		else if (currentState == State.Lifting)
-		{
-			// For lifters, according to equation (11)
-			// f_kin = max{F^0_kin - β*N_lifter, 0}
-			// They don't apply direct force but reduce friction
-
-			// We simulate this by applying a small upward force to reduce the effect of gravity/friction
-			// pullingForce = Vector2.up * settings.collisionAvoidSteerStrength * 0.3f;
-
-			// // Apply this force to the torus
-			// targetTorus.ApplyForce(pullingForce);
-
-			// We would also want to reduce the friction term in the Torus class
-			// This is handled by the global counter of lifters (nOfStates["lifter"])
-			// and should be implemented in the Torus class's movement calculations
-		}
+		
 	}
 
 	void MoveRelativeToTorus()
@@ -991,7 +960,7 @@ public class Ant : MonoBehaviour
 		return smallestRandomDir;
 	}
 
-	// Add new methods to implement the theoretical model more precisely
+
 
 	// Method to calculate the kinetic friction force based on equation (11)
 	float CalculateKineticFriction()
@@ -1007,80 +976,9 @@ public class Ant : MonoBehaviour
 		return remainingFriction;
 	}
 
-	// Method to calculate torque as per equation (10)
-	Vector2 CalculateTorque()
-	{
-		if (targetTorus == null)
-			return Vector2.zero;
 
-		// r_i is the outer radius of the object (distance from center to ant)
-		float r_i = targetTorus.radius;
 
-		// τ_rot = (r_i/γ_rot) * r_i × ω (Equation 10)
-		// We're in 2D so the cross product becomes a scalar
-		float angularVelocity = targetTorus.GetAngularVelocity();
 
-		// Calculate perpendicular component 
-		Vector2 radiusVector = currentPosition - targetTorus.currentPosition;
-		Vector2 tangentVector = new Vector2(-radiusVector.y, radiusVector.x).normalized;
-
-		// Calculate torque magnitude
-		float torqueMagnitude = (r_i / gamma_rot) * r_i * angularVelocity;
-
-		// Return as a force in the tangential direction
-		return tangentVector * torqueMagnitude;
-	}
-
-	// Helper method to get the tilt angle for position around torus
-	float GetTiltAngle(Vector2 forceDirection)
-	{
-		// Calculate the tilt angle φ between the pull direction and the radial direction
-		Vector2 radiusVector = (targetTorus.currentPosition - currentPosition).normalized;
-
-		// Get the signed angle between vectors in degrees
-		float angle = Vector2.SignedAngle(radiusVector, forceDirection);
-
-		// Convert to radians for theoretical model calculations
-		return angle * Mathf.Deg2Rad;
-	}
-
-	// Method to apply force as per equations (8) and (9)
-	void ApplyForceToTorus()
-	{
-		if (targetTorus == null || (currentState != State.Pulling && currentState != State.Informed))
-			return;
-
-		// Vector from torus center to ant (radial direction n^i in paper)
-		Vector2 radiusVector = currentPosition - targetTorus.currentPosition;
-		Vector2 radialDirection = radiusVector.normalized;
-
-		// Calculate force applied by this ant (F_i in paper)
-		float forceMagnitude = f0;
-		Vector2 pullForce = currentForwardDir * forceMagnitude;
-
-		// Calculate the projected component of force onto radial direction (n^i·F_i)
-		float radialComponent = Vector2.Dot(pullForce, radialDirection);
-
-		// Calculate friction force
-		float frictionForce = CalculateKineticFriction();
-
-		// Calculate effective force according to equation (9)
-		Vector2 effectiveForce = Vector2.zero;
-		if (currentState == State.Pulling)
-		{
-			// For pullers: Apply force along body axis, modified by tilt angle
-			effectiveForce = pullForce * Mathf.Cos(tiltAngle);
-		}
-		else if (currentState == State.Informed)
-		{
-			// For informed ants: Direct force toward nest
-			Vector2 directionToNest = (homePos - targetTorus.currentPosition).normalized;
-			effectiveForce = directionToNest * forceMagnitude;
-		}
-
-		// Apply force to torus
-		targetTorus.ApplyForce(effectiveForce);
-	}
 
 	// Method to calculate the center of mass velocity as per equation (12)
 	Vector2 CalculateCenterOfMassVelocity()
@@ -1177,26 +1075,6 @@ public class Ant : MonoBehaviour
 			}
 		}
 		// For nearby but unattached ants, calculate chance to attach
-		/* else if (currentState == State.SearchingForFood &&
-				targetTorus != null &&
-				Vector2.Distance(currentPosition, targetTorus.currentPosition) < targetTorus.radius * 1.5f)
-		{
-			// Apply attachment probability
-			if (Random.value < attachmentRate * Time.deltaTime)
-			{
-				// Become informed
-				ChangeState(State.Informed);
-				nOfStates["informed"]++;
-
-				// Calculate position on torus
-				Vector2 offset = currentPosition - targetTorus.currentPosition;
-				relativeAngleToTorus = Mathf.Atan2(offset.y, offset.x);
-
-				// Schedule role decision 
-				float assessmentTime = CalculateInformedAssessmentTime();
-				Invoke("TransitionFromInformed", assessmentTime);
-			}
-		} */
 	}
 
 

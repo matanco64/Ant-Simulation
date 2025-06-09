@@ -175,59 +175,12 @@ public class Torus : MonoBehaviour
         // Currently simplifying by assuming torque contributions are minimal
         angularVelocity = netTorque / gamma_rot;
 
-        // Detect if stuck
-        // if (Vector2.Distance(currentPosition, lastPosition) < 0.005f && totForce.magnitude > 1f)
-        // {
-        //     stuckTimer += Time.deltaTime;
-        //     if (stuckTimer > 0.5f)
-        //     {
-        //         isStuck = true;
-        //         currentVelocity += (Vector2)Random.insideUnitCircle * 0.5f;
-        //         stuckTimer = 0f;
-        //         isStuck = false;
-        //     }
-        // }
-        // else
-        // {
-        //     stuckTimer = 0f;
-        // }
+        
     }
 
-    // void HandleCollisions()
-    // {
 
-    //     // Update currentPosition manually
-    //     currentPosition += currentVelocity * Time.deltaTime;
 
-    //     // Cast to detect wall collision
-    //     RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius+ distanceToWallGap, currentVelocity.normalized, currentVelocity.magnitude * Time.deltaTime, LayerMask.GetMask("Wall"));
-
-    //     if (hit)
-    //     {
-    //         Debug.Log("Collision detected with: " + hit.collider.name + ", currentVelocity: " + currentVelocity.magnitude + ", times timedela: " + currentVelocity.magnitude * Time.deltaTime);
-    //         // LogWithScreenshot();
-    //         Vector2 normal = hit.normal;
-
-    //         // // --- 1. Correct velocity (cancel into-wall motion) ---
-    //         // float intoWall = Vector2.Dot(currentVelocity, normal);
-    //         // if (intoWall < 0f)
-    //         // {
-    //         //     currentVelocity = - normal * intoWall * velocityCorrectionStrength;
-    //         // }
-    //         currentVelocity = Vector2.zero; // Reset velocity to zero to stop movement
-    //                                         // --- 2. Correct position (push out gently) ---
-    //                                         //float distanceToWall = Vector2.Dot(currentPosition - hit.point, normal
-    //         float distanceToWall = Vector2.Distance(currentPosition, hit.point) - radius;
-    //         float desiredDistance = radius * safeDistanceMultiplier;
-    //         float penetrationDepth = desiredDistance - distanceToWall;
-
-    //         if (penetrationDepth > 0f)
-    //         {
-    //             // currentPosition += normal.normalized * penetrationDepth;
-    //         }
-    //     }
-    // }
-
+    // Handle collisions with walls and other obstacles
     void HandleCollisions()
     {
         // Predict next position
