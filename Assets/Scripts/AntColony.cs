@@ -6,7 +6,6 @@ public class AntColony : MonoBehaviour {
 
 	public AntSettings settings;
 	public Ant antPrefab;
-	public int numToSpawn = 10;
 	public Transform antHolder;
 	public bool replenishDead;
 
@@ -30,24 +29,13 @@ public class AntColony : MonoBehaviour {
 		Random.InitState(System.Environment.TickCount);
 		StartCoroutine(SpawnAntsInWaves());
 
-		string[] args = System.Environment.GetCommandLineArgs();
-
 		SimulationManager.instance.AddColonyPosition(transform.position);
 
-		foreach (string arg in args)
-		{
-			if (arg.StartsWith("-antCount"))
-			{
-				string[] parts = arg.Split(' ');
-				if (parts.Length > 1) int.TryParse(parts[1], out numToSpawn);
-			}
-		}
 	
-
 	}
 
 	IEnumerator SpawnAntsInWaves() {
-    for (int i = 0; i < numToSpawn / waveAntSize + 1; i++) {
+    for (int i = 0; i < settings.loadedParameters.antCount / waveAntSize + 1; i++) {
 		// Spawn wave of ants
 		for (int j = 0; j < waveAntSize; j++) {
 			SpawnAnt();
@@ -67,7 +55,7 @@ public class AntColony : MonoBehaviour {
 			Debug.Log("Num food collected: " + numFoodCollected);
 		}
 
-		int numDead = numToSpawn - antHolder.childCount;
+		int numDead = settings.loadedParameters.antCount - antHolder.childCount;
 		// if (Time.time > nextPossibleRespawnTime) {
 		// 	nextPossibleRespawnTime = Time.time;
 		// 	if (numDead > 0 && replenishDead) {

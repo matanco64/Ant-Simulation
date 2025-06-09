@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class Ant : MonoBehaviour
 {
 	public enum State { SearchingForFood, ReturningHome, Informed, Pulling, Lifting }
@@ -98,6 +99,10 @@ public class Ant : MonoBehaviour
 
 	private SpriteRenderer spriteRenderer;
 
+	[Header("Probability parameters")]
+	float SigmaInformedTime = 0.1f;
+	float muInformedTime = 5f;
+	float useUniformDistribution = 0.5f; // Probability of using uniform distribution for Informed time
 
 	public void SetColony(AntColony colony)
 	{
@@ -154,23 +159,13 @@ public class Ant : MonoBehaviour
 		isLeader = Random.value < 0.05f;  // 5% chance of being a leader ant
 
 		// Small random variation in individual parameters to simulate ant diversity
-		Kc += Random.Range(-0.05f, 0.05f);
+		Kc = settings.loadedParameters.kc + Random.Range(-0.05f, 0.05f);
 		Find += Random.Range(-0.1f, 0.1f);
 		spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 		ChangeState(State.SearchingForFood);
 
-		// Parse command line arguments for simulation
-		string[] args = System.Environment.GetCommandLineArgs();
 
-		foreach (string arg in args)
-		{
-			if (arg.StartsWith("-kc"))
-			{
-				string[] parts = arg.Split(' ');
-				if (parts.Length > 1) float.TryParse(parts[1], out Kc);
-			}
 		}
-	}
 
 	void Update()
 	{
@@ -304,7 +299,7 @@ public class Ant : MonoBehaviour
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
 		}
-		
+
 	}
 
 	void MoveRelativeToTorus()
@@ -583,8 +578,7 @@ public class Ant : MonoBehaviour
 					currentVelocity = Vector2.zero;
 
 					// Schedule transition after assessment period
-					float timeAsInformed = 5f;
-					Invoke("TransitionFromInformed", timeAsInformed);
+					Invoke("TransitionFromInformed", settings.loadedParameters.informedTime);
 				}
 			}
 		}

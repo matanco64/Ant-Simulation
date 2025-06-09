@@ -8,20 +8,13 @@ import numpy as np
 
 @dataclass
 class SimulationParameters:
-    ant_count: int = 100
-    simulation_speed: float = 40.0
-    stop_after_seconds: int = 120 
+    antCount: int = 100
+    simulationSpeed: float = 40.0
+    infromedTime: float = 5.0
+    stopAfterSeconds: int = 120 
     kc: int = 0.3
 
    
-   
-def to_camel_case(snake_str):
-    parts = snake_str.split('_')
-    return parts[0] + ''.join(word.capitalize() for word in parts[1:])
-
-def asdict_camel_case(obj):
-    original = asdict(obj)
-    return {to_camel_case(k): v for k, v in original.items()}
 
 
 class Point(pydantic.BaseModel):
@@ -41,11 +34,15 @@ class SimulationResultsPydantic(pydantic.BaseModel):
 
 
 SIMULATION_RESULTS_FILE = "sim_output.json"
+PARAMETERS_FILE = "sim_parameters.json"
 
 BUILD_EXE = r"Build\Ant Simulation.exe"
 
 def run_unity_build(build_path, params: SimulationParameters, headless=True):
-    args = [f"-{k} {v}" for k, v in asdict_camel_case(params).items()]
+    # Save parameters to a JSON file
+    with open(PARAMETERS_FILE, 'w') as f:
+        json.dump(asdict(params), f, indent=4)
+    args = ["-filename", PARAMETERS_FILE]
     if headless:
         args += ["-batchmode", "-nographics", "-quit"]
     cmd = [build_path] + args
@@ -56,12 +53,8 @@ def run_unity_build(build_path, params: SimulationParameters, headless=True):
     return process.returncode
 
 def run_simulation() -> SimulationResultsPydantic | None:
-    parameters = SimulationParameters(
-        ant_count=100,
-        simulation_speed=40.0,
-        stop_after_seconds=120
-    )
-    successs =run_unity_build(BUILD_EXE, parameters, headless=True)
+    parameters = SimulationParameters()
+    successs =run_unity_build(BUILD_EXE, parameters, headless=False)
     if successs != 0:
         print(f"Simulation failed with exit code {successs}")
         sys.exit(successs)

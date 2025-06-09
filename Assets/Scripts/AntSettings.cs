@@ -3,6 +3,39 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 
+
+
+[System.Serializable]
+public class LoadedParameters
+{
+	public int antCount = 100;
+	public float kc = 0.2f;              // Switching rate coefficient (basal decision-making rate)
+	public float simulationSpeed = 1f; // Speed of the simulation
+	public float informedTime = 0.5f; // Time spent in informed state
+	public float stopAfterSeconds = 0f; // Time after which the simulation stops, 0 means no stop
+
+	public LoadedParameters()
+	{
+		string[] args = Environment.GetCommandLineArgs();
+		if (args.Length > 1 && args[1].StartsWith("-filename"))
+		{
+			string[] parts = args[1].Split(' ');
+			if (parts.Length > 1)
+			{
+				// Load parameters from file
+				Debug.Log("Loading parameters from file: " + parts[1]);
+				string json = System.IO.File.ReadAllText(parts[1]);
+				JsonUtility.FromJsonOverwrite(json, this);
+			}
+		}
+		else
+		{
+			Debug.LogWarning("No parameters file specified, using default values.");
+		}
+	}
+
+}
+
 [CreateAssetMenu()]
 public class AntSettings : ScriptableObject
 {
@@ -38,20 +71,14 @@ public class AntSettings : ScriptableObject
 
 	[Header("Forces")]
 	public float antForce = 2;
+	
+	public LoadedParameters loadedParameters;
 
 	// add start function to init settings from command line arguments
 	private void OnEnable()
 	{
 
-		string[] args = Environment.GetCommandLineArgs();
-
-        foreach (string arg in args) {
-			if (arg.StartsWith("-maxSpeed"))
-			{
-				string[] parts = arg.Split(' ');
-				if (parts.Length > 1) float.TryParse(parts[1], out maxSpeed);
-			}
-        }
+		loadedParameters = new LoadedParameters();
 	}
 	
 }
