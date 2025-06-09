@@ -197,6 +197,11 @@ public class Ant : MonoBehaviour
 				ApplyTheoreticalModelForces();
 				ProcessStochasticDynamics();
 			}
+
+			if (currentState == State.Informed)
+			{
+				HandlePheromoneSteeringBackHome();
+			}
 		}
 		else
 		{
@@ -205,6 +210,36 @@ public class Ant : MonoBehaviour
 
 		// UpdateVisualizations(); // change ants colorsd based on state
 	}
+
+
+	// MAYA
+	public void HandlePheromoneSteeringBackHome()
+	{
+		Debug.Log("Handling pheromone steering back home");
+		float senseRadius = settings.pheromoneSenseRadius;
+		int numPheromones = colony.homeMarkers.GetAllInRadius(pheromoneEntries, currentPosition, senseRadius);
+
+		Vector2 totalDirection = Vector2.zero;
+
+		for (int i = 0; i < numPheromones; i++)
+		{
+			Vector2 dir = ((Vector2)pheromoneEntries[i].position - currentPosition).normalized;
+			totalDirection += dir;
+		}
+
+		if (numPheromones > 0)
+		{
+			Vector2 steerDir = totalDirection.normalized;
+			float forceMagnitude = settings.pheromoneWeight * numPheromones;
+			pheromoneSteerForce = steerDir * forceMagnitude;
+		}
+		else
+		{
+			pheromoneSteerForce = Vector2.zero;
+		}
+
+	}
+
 
 	public void SetColor(Color newColor)
 	{
@@ -260,7 +295,7 @@ public class Ant : MonoBehaviour
 			}
 
 			// Implementation of the external field (informed ant) in the theoretical model
-			float leadershipStrength = currentState == State.Informed ? 2.0f : 1.0f;
+			float leadershipStrength = 2.0f;
 			pullingForce = directionToNest * settings.collisionAvoidSteerStrength * leadershipStrength;
 
 			// Apply force to torus - this implements equation (9) from the paper
@@ -275,26 +310,6 @@ public class Ant : MonoBehaviour
 
 			// The effective force that contributes to translation
 			pullingForce = -bodyAxisVector * f0 * 20;
-
-			// Apply this force to the torus
-			targetTorus.ApplyForce(pullingForce);
-		}
-
-		else if (currentState == State.Pulling)
-		{
-			// For pullers, apply force according to equation (9)
-			// f_m = Σ n^i F_i - f_kin
-			// Where n^i is the radial direction and F_i is the force applied by a single puller
-
-			// In our case, each ant applies force in its forward direction
-			Vector2 pullForce = -bodyAxisVector * settings.collisionAvoidSteerStrength;
-
-			// Calculate the effective pulling force as per the paper's model
-			// The effective force depends on how aligned the ant is with the radial direction
-			float pullMagnitude = pullForce.magnitude * Mathf.Cos(tiltAngle);
-
-			// Apply the force in the direction of the body axis
-			pullingForce = bodyAxisVector * pullMagnitude;
 
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
@@ -969,9 +984,6 @@ public class Ant : MonoBehaviour
 
 		return remainingFriction;
 	}
-
-
-
 
 
 	// Method to calculate the center of mass velocity as per equation (12)

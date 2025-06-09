@@ -103,6 +103,50 @@ public class PerceptionMap : MonoBehaviour {
 		return i;
 	}
 
+
+	// MAYA
+	public int GetAllInRadius(Entry[] results, Vector2 position, float radius)
+	{
+		int count = 0;
+		float radiusSqr = radius * radius;
+		float currentTime = Time.time;
+
+		for (int y = 0; y < numCellsY; y++)
+		{
+			for (int x = 0; x < numCellsX; x++)
+			{
+				var cell = cells[x, y];
+				var node = cell.entries.First;
+				while (node != null)
+				{
+					var entry = node.Value;
+					float lifetime = currentTime - entry.creationTime;
+					// Remove expired entries
+					if (lifetime > antSettings.pheromoneEvaporateTime)
+					{
+						var toRemove = node;
+						node = node.Next;
+						cell.entries.Remove(toRemove);
+						continue;
+					}
+					if ((entry.position - position).sqrMagnitude <= radiusSqr)
+					{
+						if (count < results.Length)
+						{
+							results[count++] = entry;
+						}
+						else
+						{
+							return count;
+						}
+					}
+					node = node.Next;
+				}
+			}
+		}
+		return count;
+	}
+
 	Vector2Int CellCoordFromPos (Vector2 point) {
 		int x = (int) ((point.x + halfSize.x) * cellSizeReciprocal);
 		int y = (int) ((point.y + halfSize.y) * cellSizeReciprocal);

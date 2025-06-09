@@ -69,8 +69,10 @@ public class AntSettings : ScriptableObject
 
 	[Header("Forces")]
 	public float antForce = 2;
-	
+		
 	public LoadedParameters loadedParameters;
+
+	public float pheromoneSenseRadius = 2f;
 
 	// add start function to init settings from command line arguments
 	private void OnEnable()
