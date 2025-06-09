@@ -11,8 +11,8 @@ class SimulationParameters:
     antCount: int = 100
     simulationSpeed: float = 40.0
     infromedTime: float = 5.0
-    stopAfterSeconds: int = 120 
-    kc: int = 0.3
+    stopAfterSeconds: int = 200 
+    kc: float = 0.3
 
    
 
@@ -54,7 +54,7 @@ def run_unity_build(build_path, params: SimulationParameters, headless=True):
 
 def run_simulation() -> SimulationResultsPydantic | None:
     parameters = SimulationParameters()
-    successs =run_unity_build(BUILD_EXE, parameters, headless=False)
+    successs =run_unity_build(BUILD_EXE, parameters, headless=True)
     if successs != 0:
         print(f"Simulation failed with exit code {successs}")
         sys.exit(successs)
@@ -86,6 +86,7 @@ if __name__ == "__main__":
     plt.xlabel("X Position")
     plt.ylabel("Y Position")
     plt.grid(True)
+    plt.legend()
     plt.show()
     
 # import time

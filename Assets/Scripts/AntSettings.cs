@@ -17,16 +17,14 @@ public class LoadedParameters
 	public LoadedParameters()
 	{
 		string[] args = Environment.GetCommandLineArgs();
-		if (args.Length > 1 && args[1].StartsWith("-filename"))
+		int filenameIndex = Array.IndexOf(args, "-filename");
+		if (filenameIndex >= 0 && filenameIndex < args.Length - 1)
 		{
-			string[] parts = args[1].Split(' ');
-			if (parts.Length > 1)
-			{
-				// Load parameters from file
-				Debug.Log("Loading parameters from file: " + parts[1]);
-				string json = System.IO.File.ReadAllText(parts[1]);
-				JsonUtility.FromJsonOverwrite(json, this);
-			}
+			string filename = args[filenameIndex + 1];
+			// Load parameters from file
+			Debug.Log("Loading parameters from file: " + filename);
+			string json = System.IO.File.ReadAllText(filename);
+			JsonUtility.FromJsonOverwrite(json, this);
 		}
 		else
 		{

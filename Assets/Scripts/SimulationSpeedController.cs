@@ -22,7 +22,7 @@ public class SimulationSpeedController : MonoBehaviour
 
     private IEnumerator StopAfterTime()
     {
-        yield return new WaitForSeconds(loadedParameters.simulationSpeed);
+        yield return new WaitForSeconds(loadedParameters.stopAfterSeconds);
         SimulationManager.instance.endSimulation(false);
 
     }
