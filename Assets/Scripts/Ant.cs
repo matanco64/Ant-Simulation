@@ -198,7 +198,7 @@ public class Ant : MonoBehaviour
 				ProcessStochasticDynamics();
 			}
 
-			if (currentState == State.Informed)
+			if (currentState == State.Informed && settings.loadedParameters.usePheromoneSteering)
 			{
 				HandlePheromoneSteeringBackHome();
 			}
