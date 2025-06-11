@@ -14,7 +14,7 @@ public class LoadedParameters
 	public float informedTime = 0.5f; // Time spent in informed state
 	public float stopAfterSeconds = 0f; // Time after which the simulation stops, 0 means no stop
 
-	public bool usePheromoneSteering = true; // Whether to use pheromone steering
+	public int usePheromoneSteering = 0 ; // Whether to use pheromone steering 0 = non 1=...
 
 	public LoadedParameters()
 	{

@@ -198,10 +198,32 @@ public class Ant : MonoBehaviour
 				ProcessStochasticDynamics();
 			}
 
-			if (currentState == State.Informed && settings.loadedParameters.usePheromoneSteering)
+			if (currentState == State.Informed)
 			{
-				HandlePheromoneSteeringBackHome();
-			}
+				if(settings.loadedParameters.usePheromoneSteering == 0)
+				{
+					HandlePheromoneSteeringBackHome();
+
+					ApplyPheromoneGradientForcePartial(colony.homeMarkers);
+				}
+				else if (settings.loadedParameters.usePheromoneSteering == 1)
+				{
+					ApplyPheromoneGradientForcePartial(colony.homeMarkers);
+				}
+				else if (settings.loadedParameters.usePheromoneSteering == 2)
+				{
+					ApplyPheromoneGradientForceGaussian(colony.homeMarkers);
+				}
+				else if (settings.loadedParameters.usePheromoneSteering == 3)
+				{
+					ApplyExponentialPheromoneForce(colony.homeMarkers);
+				}
+				else if (settings.loadedParameters.usePheromoneSteering == 4)
+				{
+					ApplyInverseSquarePheromoneForce(colony.homeMarkers);
+				}
+				
+			}	
 		}
 		else
 		{
@@ -211,7 +233,7 @@ public class Ant : MonoBehaviour
 		// UpdateVisualizations(); // change ants colorsd based on state
 	}
 
-
+	/////////////////////////////////////////////////SteeringBackHome//////////////////////////////////////////////////////////////////////////
 	// MAYA
 	public void HandlePheromoneSteeringBackHome()
 	{
@@ -240,7 +262,159 @@ public class Ant : MonoBehaviour
 
 	}
 
+	public void ApplyPheromoneGradientForcePartial(PerceptionMap markerMap)
+	{
+		float h = 0.1f; // Small offset for finite difference
+		float radius = settings.pheromoneSenseRadius * 0.5f; // Sensing radius for local sum
 
+		// Helper to sum pheromone strengths at a position
+		float SamplePheromone(Vector2 pos)
+		{
+			int count = markerMap.GetAllInRadius(pheromoneEntries, pos, radius);
+			float sum = 0f;
+			float now = Time.time;
+			for (int i = 0; i < count; i++)
+			{
+				float evaporateT = ((now - pheromoneEntries[i].creationTime) / settings.pheromoneEvaporateTime);
+				float strength = Mathf.Clamp01(1 - evaporateT);
+				sum += strength;
+			}
+			return sum;
+		}
+
+		// Estimate partial derivatives
+		float c = SamplePheromone(currentPosition);
+		float cx = SamplePheromone(currentPosition + new Vector2(h, 0));
+		float cy = SamplePheromone(currentPosition + new Vector2(0, h));
+
+		float dCdx = (cx - c) / h;
+		float dCdy = (cy - c) / h;
+
+		Vector2 gradient = new Vector2(dCdx, dCdy);
+
+		if (gradient.sqrMagnitude > 0.0001f)
+		{
+			pheromoneSteerForce = gradient.normalized * settings.pheromoneWeight * gradient.magnitude;
+		}
+		else
+		{
+			pheromoneSteerForce = Vector2.zero;
+		}
+	}
+
+	public void ApplyPheromoneGradientForceGaussian(PerceptionMap markerMap)
+	{
+		float sigma = settings.pheromoneSenseRadius * 0.5f; // Standard deviation for Gaussian
+		float twoSigmaSq = 2 * sigma * sigma;
+		float epsilon = 1e-6f;
+
+		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, settings.pheromoneSenseRadius);
+
+		Vector2 grad = Vector2.zero;
+		float totalWeight = 0f;
+		float now = Time.time;
+
+		for (int i = 0; i < count; i++)
+		{
+			Vector2 delta = (Vector2)pheromoneEntries[i].position - currentPosition;
+			float distSq = delta.sqrMagnitude;
+			float evaporateT = ((now - pheromoneEntries[i].creationTime) / settings.pheromoneEvaporateTime);
+			float strength = Mathf.Clamp01(1 - evaporateT);
+
+			// Gaussian weight
+			float w = Mathf.Exp(-distSq / twoSigmaSq) * strength;
+
+			// Gradient of Gaussian: -delta/sigma^2 * exp(-dist^2/(2*sigma^2))
+			grad += delta * w / (sigma * sigma + epsilon);
+			totalWeight += w;
+		}
+
+		if (grad.sqrMagnitude > 0.0001f)
+		{
+			pheromoneSteerForce = grad.normalized * settings.pheromoneWeight * grad.magnitude;
+		}
+		else
+		{
+			pheromoneSteerForce = Vector2.zero;
+		}
+	}
+
+
+	public void ApplyInverseSquarePheromoneForce(PerceptionMap markerMap)
+	{
+		float radius = settings.pheromoneSenseRadius;
+		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, radius);
+
+		Vector2 totalForce = Vector2.zero;
+		float now = Time.time;
+		float minDist = 0.01f; // Prevent div by zero
+
+		for (int i = 0; i < count; i++)
+		{
+			Vector2 delta = (Vector2)pheromoneEntries[i].position - currentPosition;
+			float distSq = Mathf.Max(delta.sqrMagnitude, minDist);
+			float dist = Mathf.Sqrt(distSq);
+
+			// Time-decayed strength
+			float evaporateT = ((now - pheromoneEntries[i].creationTime) / settings.pheromoneEvaporateTime);
+			float strength = Mathf.Clamp01(1f - evaporateT);
+
+			// Inverse-square weighted force
+			float weight = (strength) / distSq;
+
+			totalForce += delta.normalized * weight;
+		}
+
+		if (totalForce.sqrMagnitude > 0.0001f)
+		{
+			pheromoneSteerForce = totalForce.normalized * settings.pheromoneWeight * totalForce.magnitude;
+		}
+		else
+		{
+			pheromoneSteerForce = Vector2.zero;
+		}
+	}
+
+
+	public void ApplyExponentialPheromoneForce(PerceptionMap markerMap)
+	{
+		float radius = settings.pheromoneSenseRadius;
+		float decayLength = settings.pheromoneSenseRadius * 0.5f; // Lambda: controls sharpness of decay
+		float now = Time.time;
+
+		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, radius);
+
+		Vector2 totalForce = Vector2.zero;
+
+		for (int i = 0; i < count; i++)
+		{
+			Vector2 delta = (Vector2)pheromoneEntries[i].position - currentPosition;
+			float dist = delta.magnitude;
+			if (dist < 0.01f) continue; // avoid self-force or division artifacts
+
+			// Strength decays with time
+			float evaporateT = (now - pheromoneEntries[i].creationTime) / settings.pheromoneEvaporateTime;
+			float timeDecay = Mathf.Clamp01(1f - evaporateT);
+
+			// Spatial exponential decay
+			float spatialWeight = Mathf.Exp(-dist / decayLength);
+			float totalWeight = timeDecay * spatialWeight;
+
+			totalForce += delta.normalized * totalWeight;
+		}
+
+		if (totalForce.sqrMagnitude > 0.0001f)
+		{
+			pheromoneSteerForce = totalForce.normalized * settings.pheromoneWeight * totalForce.magnitude;
+		}
+		else
+		{
+			pheromoneSteerForce = Vector2.zero;
+		}
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	public void SetColor(Color newColor)
 	{
 		spriteRenderer.color = newColor;

@@ -15,7 +15,7 @@ class SimulationParameters:
     infromedTime: float = 5.0
     stopAfterSeconds: int = 250
     kc: float = 0.3
-    usePheromoneSteering: bool = True
+    usePheromoneSteering: int = 0
 
 class Point(pydantic.BaseModel):
     x: float
