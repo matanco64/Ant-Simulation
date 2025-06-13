@@ -473,12 +473,13 @@ public class Ant : MonoBehaviour
 
 			if (currentState == State.Informed)
 			{
+				ApplyHomeSteering();
 				switch (settings.loadedParameters.usePheromoneSteering)
 				{
-					case 0:
-						Debug.Log("Applying Home Steering");
-						ApplyHomeSteering();
-						break;
+					// case 0:
+					// 	Debug.Log("Applying Home Steering");
+					// 	ApplyHomeSteering();
+					// 	break;
 					case 1:
 						Debug.Log("Applying In-Circle Steering");
 						ApplyInCircleSteering();
