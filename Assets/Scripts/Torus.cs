@@ -109,6 +109,7 @@ public class Torus : MonoBehaviour
         SimulationManager.instance.AddTorusDataPoint(currentPosition);
 
     }
+    
     public void ApplyForce(Vector2 force)
     {
         // Add ant's force to the collection (will be processed in Update)

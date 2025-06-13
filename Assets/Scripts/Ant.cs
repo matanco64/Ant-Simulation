@@ -92,6 +92,7 @@ public class Ant : MonoBehaviour
 	bool isLeader;                     // Whether this ant is a leader/informed ant
 	float DetachAssessmentTime = 0; // Last time the ant detached from the torus
 
+	float informedForce = 2.0f;
 
 	// Critical point parameters
 	[Header("Critical Point Parameters")]
@@ -103,6 +104,8 @@ public class Ant : MonoBehaviour
 	float SigmaInformedTime = 0.1f;
 	float muInformedTime = 5f;
 	float useUniformDistribution = 0.5f; // Probability of using uniform distribution for Informed time
+
+	float colonyPullStrength = 4.0f; // Strength of the colony pulling force
 
 	public void SetColony(AntColony colony)
 	{
@@ -165,7 +168,7 @@ public class Ant : MonoBehaviour
 		ChangeState(State.SearchingForFood);
 
 
-		}
+	}
 
 	void Update()
 	{
@@ -198,32 +201,6 @@ public class Ant : MonoBehaviour
 				ProcessStochasticDynamics();
 			}
 
-			if (currentState == State.Informed)
-			{
-				if(settings.loadedParameters.usePheromoneSteering == 0)
-				{
-					HandlePheromoneSteeringBackHome();
-
-					ApplyPheromoneGradientForcePartial(colony.homeMarkers);
-				}
-				else if (settings.loadedParameters.usePheromoneSteering == 1)
-				{
-					ApplyPheromoneGradientForcePartial(colony.homeMarkers);
-				}
-				else if (settings.loadedParameters.usePheromoneSteering == 2)
-				{
-					ApplyPheromoneGradientForceGaussian(colony.homeMarkers);
-				}
-				else if (settings.loadedParameters.usePheromoneSteering == 3)
-				{
-					ApplyExponentialPheromoneForce(colony.homeMarkers);
-				}
-				else if (settings.loadedParameters.usePheromoneSteering == 4)
-				{
-					ApplyInverseSquarePheromoneForce(colony.homeMarkers);
-				}
-				
-			}	
 		}
 		else
 		{
@@ -235,9 +212,35 @@ public class Ant : MonoBehaviour
 
 	/////////////////////////////////////////////////SteeringBackHome//////////////////////////////////////////////////////////////////////////
 	// MAYA
-	public void HandlePheromoneSteeringBackHome()
+
+
+	public void ApplyHomeSteering() //0
 	{
-		Debug.Log("Handling pheromone steering back home");
+		// Find direction to home
+		Vector2 directionToNest = Vector2.zero;
+		Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+
+		if (home)
+		{
+			// Direction toward home
+			directionToNest = ((Vector2)home.transform.position - targetTorus.currentPosition).normalized;
+		}
+		else
+		{
+			// If home not visible, use direction away from torus as fallback
+			directionToNest = (homePos - targetTorus.currentPosition).normalized;
+		}
+
+		// Implementation of the external field (informed ant) in the theoretical model
+		pullingForce = directionToNest * settings.collisionAvoidSteerStrength * informedForce;
+
+		// Apply force to torus - this implements equation (9) from the paper
+		targetTorus.ApplyForce(pullingForce);
+		pheromoneSteerForce = pullingForce;
+	}
+	public void ApplyInCircleSteering() //1
+	{
+		// Debug.Log("Handling pheromone steering back home");
 		float senseRadius = settings.pheromoneSenseRadius;
 		int numPheromones = colony.homeMarkers.GetAllInRadius(pheromoneEntries, currentPosition, senseRadius);
 
@@ -249,20 +252,24 @@ public class Ant : MonoBehaviour
 			totalDirection += dir;
 		}
 
+
+		Vector2 force;
 		if (numPheromones > 0)
 		{
 			Vector2 steerDir = totalDirection.normalized;
-			float forceMagnitude = settings.pheromoneWeight * numPheromones;
-			pheromoneSteerForce = steerDir * forceMagnitude;
+			force = steerDir * informedForce;
 		}
 		else
 		{
-			pheromoneSteerForce = Vector2.zero;
+			Vector2 randomDir = Random.insideUnitCircle.normalized;
+			force = randomDir * informedForce;
 		}
 
+		targetTorus.ApplyForce(force);
+		pheromoneSteerForce = force;
 	}
 
-	public void ApplyPheromoneGradientForcePartial(PerceptionMap markerMap)
+	public void ApplyGradientPartialSteering(PerceptionMap markerMap) //2
 	{
 		float h = 0.1f; // Small offset for finite difference
 		float radius = settings.pheromoneSenseRadius * 0.5f; // Sensing radius for local sum
@@ -294,15 +301,14 @@ public class Ant : MonoBehaviour
 
 		if (gradient.sqrMagnitude > 0.0001f)
 		{
-			pheromoneSteerForce = gradient.normalized * settings.pheromoneWeight * gradient.magnitude;
-		}
-		else
-		{
-			pheromoneSteerForce = Vector2.zero;
+			
+			Vector2 force = gradient.normalized * settings.pheromoneWeight * gradient.magnitude *informedForce;
+			targetTorus.ApplyForce(force);
+			pheromoneSteerForce = force;
 		}
 	}
 
-	public void ApplyPheromoneGradientForceGaussian(PerceptionMap markerMap)
+	public void ApplyGradientGaussianSteering(PerceptionMap markerMap) //3
 	{
 		float sigma = settings.pheromoneSenseRadius * 0.5f; // Standard deviation for Gaussian
 		float twoSigmaSq = 2 * sigma * sigma;
@@ -331,16 +337,14 @@ public class Ant : MonoBehaviour
 
 		if (grad.sqrMagnitude > 0.0001f)
 		{
-			pheromoneSteerForce = grad.normalized * settings.pheromoneWeight * grad.magnitude;
-		}
-		else
-		{
-			pheromoneSteerForce = Vector2.zero;
+			Vector2 force = grad.normalized * settings.pheromoneWeight * grad.magnitude * informedForce;
+			targetTorus.ApplyForce(force);
+			pheromoneSteerForce = force;
 		}
 	}
 
 
-	public void ApplyInverseSquarePheromoneForce(PerceptionMap markerMap)
+	public void ApplyInverseSquareSteering(PerceptionMap markerMap) //4
 	{
 		float radius = settings.pheromoneSenseRadius;
 		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, radius);
@@ -367,16 +371,14 @@ public class Ant : MonoBehaviour
 
 		if (totalForce.sqrMagnitude > 0.0001f)
 		{
-			pheromoneSteerForce = totalForce.normalized * settings.pheromoneWeight * totalForce.magnitude;
-		}
-		else
-		{
-			pheromoneSteerForce = Vector2.zero;
+			Vector2 force = totalForce.normalized * settings.pheromoneWeight * totalForce.magnitude;
+			targetTorus.ApplyForce(force);
+			pheromoneSteerForce = force;
 		}
 	}
 
 
-	public void ApplyExponentialPheromoneForce(PerceptionMap markerMap)
+	public void ApplyExponentialSteering(PerceptionMap markerMap) //5cvbn 
 	{
 		float radius = settings.pheromoneSenseRadius;
 		float decayLength = settings.pheromoneSenseRadius * 0.5f; // Lambda: controls sharpness of decay
@@ -405,12 +407,29 @@ public class Ant : MonoBehaviour
 
 		if (totalForce.sqrMagnitude > 0.0001f)
 		{
-			pheromoneSteerForce = totalForce.normalized * settings.pheromoneWeight * totalForce.magnitude;
+			Vector2 force = totalForce.normalized * settings.pheromoneWeight * totalForce.magnitude * informedForce;
+			targetTorus.ApplyForce(force);
+			pheromoneSteerForce = force;
 		}
-		else
-		{
-			pheromoneSteerForce = Vector2.zero;
-		}
+	}
+
+	public void ApplyColonyPullingForce()
+	{
+		Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+		if (home == null) return;
+
+		Vector2 colonyPosition = home.transform.position;
+		Vector2 delta = colonyPosition - currentPosition;
+
+		float distSq = Mathf.Max(delta.sqrMagnitude, 0.01f); // Avoid div by zero
+		float dist = Mathf.Sqrt(distSq);
+
+		float forceMagnitude = colonyPullStrength / distSq;      // Inverse-square force
+
+		Vector2 force = delta.normalized * forceMagnitude;
+
+		// Apply this pulling force to the ant (or the torus — see below)
+		targetTorus.ApplyForce(force); // ← or use `ApplyForceToAnt(force)` if desired
 	}
 
 
@@ -451,29 +470,43 @@ public class Ant : MonoBehaviour
 
 		if (currentState == State.Informed)
 		{
-			// CRITICAL FIX: Actually calculate and apply force when informed
 
-			// Find direction to home
-			Vector2 directionToNest = Vector2.zero;
-			Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
-
-			if (home)
+			if (currentState == State.Informed)
 			{
-				// Direction toward home
-				directionToNest = ((Vector2)home.transform.position - targetTorus.currentPosition).normalized;
-			}
-			else
-			{
-				// If home not visible, use direction away from torus as fallback
-				directionToNest = (homePos - targetTorus.currentPosition).normalized;
-			}
+				switch (settings.loadedParameters.usePheromoneSteering)
+				{
+					case 0:
+						Debug.Log("Applying Home Steering");
+						ApplyHomeSteering();
+						break;
+					case 1:
+						Debug.Log("Applying In-Circle Steering");
+						ApplyInCircleSteering();
+						break;
+					case 2:
+						Debug.Log("Applying Gradient Partial Steering");
+						ApplyGradientPartialSteering(colony.homeMarkers);
+						break;
+					case 3:
+						Debug.Log("Applying Gradient Gaussian Steering");
+						ApplyGradientGaussianSteering(colony.homeMarkers);
+						break;
+					case 4:
+						Debug.Log("Applying Inverse Square Steering");
+						ApplyInverseSquareSteering(colony.homeMarkers);
+						break;
+					case 5:
+						Debug.Log("Applying Exponential Steering");
+						ApplyExponentialSteering(colony.homeMarkers);
+						break;
+					default:
+						// Dummy case to avoid errors
+						break;
+				}
 
-			// Implementation of the external field (informed ant) in the theoretical model
-			float leadershipStrength = 2.0f;
-			pullingForce = directionToNest * settings.collisionAvoidSteerStrength * leadershipStrength;
 
-			// Apply force to torus - this implements equation (9) from the paper
-			targetTorus.ApplyForce(pullingForce);
+				ApplyColonyPullingForce();
+			}
 		}
 
 		else if (currentState == State.Pulling)
@@ -487,8 +520,39 @@ public class Ant : MonoBehaviour
 
 			// Apply this force to the torus
 			targetTorus.ApplyForce(pullingForce);
+			StraightForceToColony();
 		}
 
+	}
+
+	void StraightForceToColony()
+	{
+	
+			Vector2 directionToNest = Vector2.zero;
+
+			// Check if home is within radius
+			Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+
+			if (home != null)
+			{
+				// Compute direction and distance from torus to home
+				Vector2 homePos = (Vector2)home.transform.position;
+				Vector2 torusPos = targetTorus.currentPosition;
+				Vector2 toHome = homePos - torusPos;
+				float distance = toHome.magnitude;
+
+				// Raycast from torus to home to check visibility
+				RaycastHit2D hit = Physics2D.Raycast(torusPos, toHome.normalized, distance, homeMask);
+
+				if (hit.collider != null && hit.collider.transform == home.transform)
+				{
+					// Line of sight is clear and home is in range
+					directionToNest = toHome.normalized;
+
+					// Apply force toward home
+					targetTorus.ApplyForce(directionToNest * informedForce);
+				}
+			}
 	}
 
 	void MoveRelativeToTorus()
@@ -835,7 +899,6 @@ public class Ant : MonoBehaviour
 			ChangeState(State.Pulling);
 			SetColor(Color.red);
 			nOfStates["puller"]++;
-			Debug.Log("Transitioning to Pulling state");
 		}
 		else
 		{
@@ -843,7 +906,6 @@ public class Ant : MonoBehaviour
 			ChangeState(State.Lifting);
 			SetColor(Color.blue);
 			nOfStates["lifter"]++;
-			Debug.Log("Transitioning to Lifting state");
 		}
 
 		// Schedule role reassessment according to stochastic model
@@ -1204,7 +1266,7 @@ public class Ant : MonoBehaviour
 
 	float GenerateRandomDetachmentTime()
 	{
-		return Random.Range(2f, 10f);
+		return Random.Range(4f, 10f);
 	}
 	void ProcessAttachmentDetachment()
 	{

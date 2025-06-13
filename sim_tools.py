@@ -8,18 +8,23 @@ from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool  # For multithreading
 
 # --- Data Classes ---
+
+
 @dataclass
 class SimulationParameters:
-    antCount: int = 100
-    simulationSpeed: float = 40.0
-    infromedTime: float = 5.0
-    stopAfterSeconds: int = 250
+    antCount: int = 200
+    simulationSpeed: float = 50.0
+    infromedTime: float = 20.0
+    stopAfterSeconds: int = 5000
     kc: float = 0.3
     usePheromoneSteering: int = 0
+    HomeSenseRadius: int = 0
+
 
 class Point(pydantic.BaseModel):
     x: float
     y: float
+
 
 class SimulationResultsPydantic(pydantic.BaseModel):
     runId: str
@@ -30,13 +35,16 @@ class SimulationResultsPydantic(pydantic.BaseModel):
     torusPositions: list[Point]
     ant_colony_position: Point
 
+
 # --- File Paths ---
 SIMULATION_RESULTS_FILE = "sim_output.json"
 PARAMETERS_FILE = "sim_parameters.json"
 BUILD_EXE = r"Build\\Ant Simulation.exe"
 
 # --- Core Functions ---
-def run_unity_build(build_path, params: SimulationParameters, parameters_path = PARAMETERS_FILE, headless=True):
+
+
+def run_unity_build(build_path, params: SimulationParameters, parameters_path=PARAMETERS_FILE, headless=True):
     """Run the Unity simulation build with given parameters."""
     with open(parameters_path, 'w') as f:
         json.dump(asdict(params), f, indent=4)
@@ -48,7 +56,8 @@ def run_unity_build(build_path, params: SimulationParameters, parameters_path = 
     process.wait()
     return process.returncode
 
-def run_simulation(params: SimulationParameters |  None = None, build_path: str = BUILD_EXE, headless: bool = True) -> SimulationResultsPydantic | None:
+
+def run_simulation(params: SimulationParameters | None = None, build_path: str = BUILD_EXE, headless: bool = True) -> SimulationResultsPydantic | None:
     """Run a single simulation and return results as a Pydantic object."""
     if params is None:
         params = SimulationParameters()
@@ -66,10 +75,12 @@ def run_simulation(params: SimulationParameters |  None = None, build_path: str 
         print(f"Error decoding JSON from results file: {e}")
     return None
 
+
 def _run_simulation_worker(params_dict):
     """Worker for parallel simulation runs."""
     params = SimulationParameters(**params_dict)
     return run_simulation(params)
+
 
 def run_simulations_batch(param_list, processes=None):
     """
@@ -81,7 +92,8 @@ def run_simulations_batch(param_list, processes=None):
     if not param_list:
         return []
     # Convert to dicts if needed
-    param_dicts = [asdict(p) if isinstance(p, SimulationParameters) else p for p in param_list]
+    param_dicts = [asdict(p) if isinstance(
+        p, SimulationParameters) else p for p in param_list]
     if processes is None:
         processes = min(int(cpu_count() / 2), len(param_dicts))
     with Pool(processes=processes) as pool:
@@ -96,7 +108,7 @@ if __name__ == '__main__':
 
     for i, res in enumerate(batch_results):
         if res:
-            print(f"Run {i+1} (antCount={param_list[i].antCount}): Success, duration={res.duration}")
+            print(
+                f"Run {i+1} (antCount={param_list[i].antCount}): Success, duration={res.duration}")
         else:
             print(f"Run {i+1} (antCount={param_list[i].antCount}): Failed")
-    

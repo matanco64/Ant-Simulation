@@ -5128,7 +5128,6 @@ MonoBehaviour:
   settings: {fileID: 11400000, guid: eff18608398fc493e9b42e82afe5ae97, type: 2}
   antPrefab: {fileID: 402160823636076130, guid: 6521f716eb1dd42a3b8f86938e1183fa,
     type: 3}
-  numToSpawn: 2000
   antHolder: {fileID: 1127930924}
   replenishDead: 1
   homeMarkers: {fileID: 1838622586}
@@ -5173,8 +5172,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 304edcb086e4d0a418365ee26be42f5f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  initialTimeScale: 5
-  stopAfterSeconds: 0
 --- !u!114 &592423578
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10690,7 +10687,7 @@ MonoBehaviour:
   brushStrength: 5
   brush: {fileID: 825386571}
   brushRadiusInputSensitivity: 0.8
-  loadFile: {fileID: 4900000, guid: 99079ebc1fc9a264ba34389563df319d, type: 3}
+  loadFile: {fileID: 4900000, guid: 66db489a852c6284bb08ceca8b1c7408, type: 3}
   loadOnStart: 1
 --- !u!4 &1664453873
 Transform:
@@ -10753,7 +10750,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1694517054}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -9.7, y: 7.9, z: 0}
+  m_LocalPosition: {x: -20, y: 7.9, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 13966, guid: 0000000000000000e000000000000000, type: 0}
+  m_Name: Ants
+  m_EditorClassIdentifier: 
+  templateScene: {fileID: 102900000, guid: 6b413ac18c2f94f33bb2e94085816eb2, type: 3}
+  templateName: 
+  description: 
+  preview: {fileID: 0}
+  dependencies:
+  - dependency: {fileID: 2800000, guid: a389884f919e34b4e9ec03e033127d26, type: 3}
+    instantiationMode: 0
+  - dependency: {fileID: 11400000, guid: eff18608398fc493e9b42e82afe5ae97, type: 2}
+    instantiationMode: 1
+  - dependency: {fileID: 2100000, guid: 2e61af1da6f0ecc4c8f812c41c4b0cc4, type: 2}
+    instantiationMode: 0
+  - dependency: {fileID: 2800000, guid: 7b36b66cc117b8646bee12068857c1a5, type: 3}
+    instantiationMode: 0
+  - dependency: {fileID: 2100000, guid: 5c436ec05891641498321fefa22f8cc4, type: 2}
+    instantiationMode: 0
+  - dependency: {fileID: 402160823636076129, guid: 6521f716eb1dd42a3b8f86938e1183fa,
+      type: 3}
+    instantiationMode: 0
+  - dependency: {fileID: 2800000, guid: 348ab8fe8c901466eab2c10be371987e, type: 3}
+    instantiationMode: 0
+  - dependency: {fileID: 2100000, guid: 1947693d0df5e4e60a9cfb1629946c75, type: 2}
+    instantiationMode: 0
+  - dependency: {fileID: 2100000, guid: 56f02d3b1110d4d52874711ab613e629, type: 2}
+    instantiationMode: 0
+  - dependency: {fileID: 2100000, guid: 4ae50dc4904a44898a5167f2cbf44ce8, type: 2}
+    instantiationMode: 0
+  - dependency: {fileID: 4900000, guid: 66db489a852c6284bb08ceca8b1c7408, type: 3}
+    instantiationMode: 1
+  - dependency: {fileID: 2100000, guid: 52b45dfdf88b7004b8c6a203bb4f09f3, type: 2}
+    instantiationMode: 0
+  - dependency: {fileID: 9180137372315387714, guid: c27d6fda497c9a54e9eb1498511d8e75,
+      type: 3}
+    instantiationMode: 0
+  templatePipeline: {fileID: 0}
+  addToDefaults: 0
