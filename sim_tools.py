@@ -1,15 +1,23 @@
 import subprocess
 import sys
+import os
 from dataclasses import dataclass, asdict
 import pydantic
 import json
 import numpy as np
 from multiprocessing import cpu_count
-from multiprocessing.dummy import Pool  # For multithreading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import uuid
+from tqdm import tqdm
+
+
+SIMULATION_RESULTS_FILE = "sim_output.json"
+PARAMETERS_FILE = "sim_parameters.json"
+BUILD_EXE = r"Build\\Ant Simulation.exe"
+
+SIMULATION_FILES_DIRECTORY = "SimulationFiles"
 
 # --- Data Classes ---
-
-
 @dataclass
 class SimulationParameters:
     antCount: int = 200
@@ -19,6 +27,7 @@ class SimulationParameters:
     kc: float = 0.3
     usePheromoneSteering: int = 0
     HomeSenseRadius: int = 0
+    outputFile: str = SIMULATION_RESULTS_FILE
 
 
 class Point(pydantic.BaseModel):
@@ -36,15 +45,10 @@ class SimulationResultsPydantic(pydantic.BaseModel):
     ant_colony_position: Point
 
 
-# --- File Paths ---
-SIMULATION_RESULTS_FILE = "sim_output.json"
-PARAMETERS_FILE = "sim_parameters.json"
-BUILD_EXE = r"Build\\Ant Simulation.exe"
-
-# --- Core Functions ---
+SimulationData = tuple[SimulationParameters, SimulationResultsPydantic]
 
 
-def run_unity_build(build_path, params: SimulationParameters, parameters_path=PARAMETERS_FILE, headless=True):
+def run_unity_build(build_path, params: SimulationParameters, parameters_path = PARAMETERS_FILE, headless=True):
     """Run the Unity simulation build with given parameters."""
     with open(parameters_path, 'w') as f:
         json.dump(asdict(params), f, indent=4)
@@ -57,56 +61,101 @@ def run_unity_build(build_path, params: SimulationParameters, parameters_path=PA
     return process.returncode
 
 
-def run_simulation(params: SimulationParameters | None = None, build_path: str = BUILD_EXE, headless: bool = True) -> SimulationResultsPydantic | None:
+def run_simulation(params: SimulationParameters | None = None, 
+                   parameters_path = PARAMETERS_FILE,
+                   build_path: str = BUILD_EXE, headless: bool = True) -> SimulationResultsPydantic | None:
     """Run a single simulation and return results as a Pydantic object."""
     if params is None:
         params = SimulationParameters()
-    success = run_unity_build(build_path, params, headless=headless)
+    success = run_unity_build(build_path, params, parameters_path=parameters_path, headless=headless)
     if success != 0:
         print(f"Simulation failed with exit code {success}")
         return None
-    try:
-        with open(SIMULATION_RESULTS_FILE, 'r') as f:
-            results_data = f.read()
-            return SimulationResultsPydantic.model_validate_json(results_data)
-    except FileNotFoundError:
-        print(f"Results file {SIMULATION_RESULTS_FILE} not found.")
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON from results file: {e}")
-    return None
+    return load_simulation_results(file_path=params.outputFile)
 
 
 def _run_simulation_worker(params_dict):
     """Worker for parallel simulation runs."""
     params = SimulationParameters(**params_dict)
-    return run_simulation(params)
+    return run_simulation_with_generated_input_output_files(params)
+
+def run_simulation_with_generated_input_output_files(param: SimulationParameters | None = None):
+    """
+    Run a simulation with generated input and output files.
+    param: SimulationParameters or None (default uses default parameters)
+    Returns: SimulationResultsPydantic or None
+    """
+    if param is None:
+        param = SimulationParameters()
+    # ensure output directory exists
+    os.makedirs(SIMULATION_FILES_DIRECTORY, exist_ok=True)
+    # generate input and output file paths
+    sim_id = uuid.uuid4().hex
+    input_file = os.path.join(SIMULATION_FILES_DIRECTORY,  sim_id + "_input.json")
+    output_file = os.path.join(SIMULATION_FILES_DIRECTORY, sim_id + "_output.json")
+    param.outputFile = output_file
+    results = run_simulation(param, parameters_path=input_file)
+    
+    
+    # remove the input file after simulation
+    # if os.path.exists(input_file):
+    #     os.remove(input_file)
+    # if results is not None and os.path.exists(output_file):
+    #     os.remove(output_file)
+    
+    
+    return results
 
 
 def run_simulations_batch(param_list, processes=None):
-    """
-    Run multiple simulations in parallel.
-    param_list: list of dicts or SimulationParameters
-    processes: number of parallel processes (default: cpu_count())
-    Returns: list of SimulationResultsPydantic or None
-    """
     if not param_list:
         return []
-    # Convert to dicts if needed
-    param_dicts = [asdict(p) if isinstance(
-        p, SimulationParameters) else p for p in param_list]
+
+    param_dicts = [asdict(p) if isinstance(p, SimulationParameters) else p for p in param_list]
     if processes is None:
         processes = min(int(cpu_count() / 2), len(param_dicts))
-    with Pool(processes=processes) as pool:
-        results = pool.map(_run_simulation_worker, param_dicts)
+
+    results = []
+    with ThreadPoolExecutor(max_workers=processes) as executor:
+        futures = [executor.submit(_run_simulation_worker, param) for param in param_dicts]
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Running simulations"):
+            results.append(future.result())
+    return results
+
+def load_simulation_results(file_path: str = SIMULATION_RESULTS_FILE) -> SimulationResultsPydantic | None:
+    """Load simulation results from a JSON file."""
+    try:
+        with open(file_path, 'r') as f:
+            results_data = f.read()
+            return SimulationResultsPydantic.model_validate_json(results_data)
+    except FileNotFoundError:
+        print(f"Results file {file_path} not found.")
+    except json.JSONDecodeError as e:
+        print(f"Error decoding JSON from results file: {e}")
+    return None
+
+
+def load_results_from_directory(directory: str = SIMULATION_FILES_DIRECTORY) -> list[SimulationData]:
+    """Load all simulation results from a directory."""
+    results = []
+    for filename in os.listdir(directory):
+        if filename.endswith("_output.json"):
+            file_path = os.path.join(directory, filename)
+            input_file_path = os.path.join(directory, filename.replace("_output.json", "_input.json"))
+            if os.path.exists(input_file_path):
+                with open(input_file_path, 'r') as f:
+                    input_p = SimulationParameters(**json.load(f))
+                    result = load_simulation_results(file_path)
+                    results.append((input_p, result))
     return results
 
 
 if __name__ == '__main__':
 
-    param_list = [SimulationParameters(antCount=ac) for ac in range(50, 60, 3)]
+    param_list = [SimulationParameters(antCount=ac) for ac in range(400, 600, 3)]
     batch_results = run_simulations_batch(param_list)
 
-    for i, res in enumerate(batch_results):
+    for i, res in enumerate(tqdm(batch_results)):
         if res:
             print(
                 f"Run {i+1} (antCount={param_list[i].antCount}): Success, duration={res.duration}")
