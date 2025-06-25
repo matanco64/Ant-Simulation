@@ -15,6 +15,7 @@ public class LoadedParameters
 	public float stopAfterSeconds = 0f; // Time after which the simulation stops, 0 means no stop
 
 	public int usePheromoneSteering = 0 ; // Whether to use pheromone steering 0 = non 1=...
+	public string outputFile = ""; // File to write output to
 
 	public LoadedParameters()
 	{
@@ -52,7 +53,7 @@ public class AntSettings : ScriptableObject
 
 	[Header("Pheromones")]
 	public float dstBetweenMarkers = 0.75f;
-	public float pheromoneEvaporateTime = 45;
+	public float pheromoneEvaporateTime = 140;
 	public float pheromoneRunOutTime = 30;
 	public float pheromoneWeight = 1;
 	public float perceptionRadius = 2.5f;

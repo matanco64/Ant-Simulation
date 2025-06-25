@@ -74,7 +74,10 @@ public class SimulationManager : MonoBehaviour
 
     public void SaveRunData(SimRunData runData)
     {
-        string json = JsonUtility.ToJson(runData, true);
-        System.IO.File.WriteAllText("sim_output.json", json);
+        LoadedParameters parameters = new LoadedParameters();
+        if(parameters.outputFile != "")
+        {
+            System.IO.File.WriteAllText(parameters.outputFile, JsonUtility.ToJson(runData, true));
+        }
     }
 }
