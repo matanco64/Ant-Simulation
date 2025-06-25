@@ -1,3 +1,4 @@
+import functools
 import subprocess
 import sys
 import os
@@ -74,12 +75,12 @@ def run_simulation(params: SimulationParameters | None = None,
     return load_simulation_results(file_path=params.outputFile)
 
 
-def _run_simulation_worker(params_dict):
+def _run_simulation_worker(params_dict, working_directory: str = SIMULATION_FILES_DIRECTORY):
     """Worker for parallel simulation runs."""
     params = SimulationParameters(**params_dict)
-    return run_simulation_with_generated_input_output_files(params)
+    return run_simulation_with_generated_input_output_files(params, working_directory=working_directory)
 
-def run_simulation_with_generated_input_output_files(param: SimulationParameters | None = None):
+def run_simulation_with_generated_input_output_files(param: SimulationParameters | None = None, working_directory: str = SIMULATION_FILES_DIRECTORY):
     """
     Run a simulation with generated input and output files.
     param: SimulationParameters or None (default uses default parameters)
@@ -88,11 +89,11 @@ def run_simulation_with_generated_input_output_files(param: SimulationParameters
     if param is None:
         param = SimulationParameters()
     # ensure output directory exists
-    os.makedirs(SIMULATION_FILES_DIRECTORY, exist_ok=True)
+    os.makedirs(working_directory, exist_ok=True)
     # generate input and output file paths
     sim_id = uuid.uuid4().hex
-    input_file = os.path.join(SIMULATION_FILES_DIRECTORY,  sim_id + "_input.json")
-    output_file = os.path.join(SIMULATION_FILES_DIRECTORY, sim_id + "_output.json")
+    input_file = os.path.join(working_directory,  sim_id + "_input.json")
+    output_file = os.path.join(working_directory, sim_id + "_output.json")
     param.outputFile = output_file
     results = run_simulation(param, parameters_path=input_file)
     
@@ -107,17 +108,16 @@ def run_simulation_with_generated_input_output_files(param: SimulationParameters
     return results
 
 
-def run_simulations_batch(param_list, processes=None):
+def run_simulations_batch(param_list, working_directory: str = SIMULATION_FILES_DIRECTORY, processes: int | None = None):
     if not param_list:
         return []
-
     param_dicts = [asdict(p) if isinstance(p, SimulationParameters) else p for p in param_list]
     if processes is None:
         processes = min(int(cpu_count() / 2), len(param_dicts))
 
     results = []
     with ThreadPoolExecutor(max_workers=processes) as executor:
-        futures = [executor.submit(_run_simulation_worker, param) for param in param_dicts]
+        futures = [executor.submit(functools.partial(_run_simulation_worker, working_directory=working_directory), param) for param in param_dicts]
         for future in tqdm(as_completed(futures), total=len(futures), desc="Running simulations"):
             results.append(future.result())
     return results
