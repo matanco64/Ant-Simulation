@@ -51,7 +51,7 @@ public class AntSettings : ScriptableObject
 	public float timeBetweenRandomSteers = 0.5f;
 
 	[Header("Pheromones")]
-	public float dstBetweenMarkers = 0.75f;
+	public float dstBetweenMarkers = 0.2f;
 	public float pheromoneEvaporateTime = 45;
 	public float pheromoneRunOutTime = 30;
 	public float pheromoneWeight = 1;
@@ -67,7 +67,7 @@ public class AntSettings : ScriptableObject
 
 	[Header("Lifetime")]
 	public float lifetime = 150;
-	public bool useDeath = false;
+	public bool useDeath = true;
 
 	[Header("Forces")]
 	public float antForce = 2;

@@ -1,0 +1,10 @@
+{
+    "antCount": 200,
+    "simulationSpeed": 50.0,
+    "infromedTime": 20.0,
+    "stopAfterSeconds": 5000,
+    "kc": 0.3,
+    "usePheromoneSteering": 0,
+    "HomeSenseRadius": 0,
+    "outputFile": "SimulationFiles\\fa911c2a7d7e495d94b9c03aa9bc8994_output.json"
+}

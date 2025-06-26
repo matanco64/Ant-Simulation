@@ -105,7 +105,16 @@ public class Ant : MonoBehaviour
 	float muInformedTime = 5f;
 	float useUniformDistribution = 0.5f; // Probability of using uniform distribution for Informed time
 
+
 	float colonyPullStrength = 4.0f; // Strength of the colony pulling force
+
+	// Dual pheromone map parameters
+ 	private DualPheromoneMap dualMap;
+ 	private float dualSenseRadius = 2f;
+ 	private float dualPheromoneWeight = 1f;
+  	private float negativeDropCooldown = 2f;
+	private float lastNegativeDrop = -Mathf.Infinity;
+
 
 	public void SetColony(AntColony colony)
 	{
@@ -199,6 +208,7 @@ public class Ant : MonoBehaviour
 			{
 				ApplyTheoreticalModelForces();
 				ProcessStochasticDynamics();
+				updateDuelMap();
 			}
 
 		}
@@ -212,6 +222,11 @@ public class Ant : MonoBehaviour
 
 	/////////////////////////////////////////////////SteeringBackHome//////////////////////////////////////////////////////////////////////////
 	// MAYA
+
+	public void updateDuelMap()
+	{
+		dualMap.Deposit(transform.position, 1.0f, PheromoneType.Positive);
+	}
 
 
 	public void ApplyHomeSteering() //0
@@ -301,8 +316,8 @@ public class Ant : MonoBehaviour
 
 		if (gradient.sqrMagnitude > 0.0001f)
 		{
-			
-			Vector2 force = gradient.normalized * settings.pheromoneWeight * gradient.magnitude *informedForce;
+
+			Vector2 force = gradient.normalized * settings.pheromoneWeight * gradient.magnitude * informedForce;
 			targetTorus.ApplyForce(force);
 			pheromoneSteerForce = force;
 		}
@@ -413,6 +428,15 @@ public class Ant : MonoBehaviour
 		}
 	}
 
+	public void ApplyPherDuelSteering(PerceptionMap markerMap) //5cvbn 
+	{
+		Vector2 posGradient = dualMap.GetGradient(transform.position, dualSenseRadius, PheromoneType.Positive);
+		Vector2 negGradient = dualMap.GetGradient(transform.position, dualSenseRadius, PheromoneType.Negative);
+
+		Vector2 netSteer = (posGradient - negGradient) * dualPheromoneWeight;
+		pheromoneSteerForce += netSteer * Time.fixedDeltaTime;
+	}
+
 	public void ApplyColonyPullingForce()
 	{
 		Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
@@ -473,13 +497,13 @@ public class Ant : MonoBehaviour
 
 			if (currentState == State.Informed)
 			{
-				ApplyHomeSteering();
+				// ApplyHomeSteering();
 				switch (settings.loadedParameters.usePheromoneSteering)
 				{
-					// case 0:
-					// 	Debug.Log("Applying Home Steering");
-					// 	ApplyHomeSteering();
-					// 	break;
+					case 0:
+						Debug.Log("Applying Home Steering");
+						ApplyHomeSteering();
+						break;
 					case 1:
 						Debug.Log("Applying In-Circle Steering");
 						ApplyInCircleSteering();
@@ -498,6 +522,10 @@ public class Ant : MonoBehaviour
 						break;
 					case 5:
 						Debug.Log("Applying Exponential Steering");
+						ApplyExponentialSteering(colony.homeMarkers);
+						break;
+					case 6:
+						Debug.Log("Applying Dual Pheromone System Steering");
 						ApplyExponentialSteering(colony.homeMarkers);
 						break;
 					default:
@@ -528,32 +556,32 @@ public class Ant : MonoBehaviour
 
 	void StraightForceToColony()
 	{
-	
-			Vector2 directionToNest = Vector2.zero;
 
-			// Check if home is within radius
-			Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+		Vector2 directionToNest = Vector2.zero;
 
-			if (home != null)
+		// Check if home is within radius
+		Collider2D home = Physics2D.OverlapCircle(perceptionCentre.position, settings.perceptionRadius * 2, homeMask);
+
+		if (home != null)
+		{
+			// Compute direction and distance from torus to home
+			Vector2 homePos = (Vector2)home.transform.position;
+			Vector2 torusPos = targetTorus.currentPosition;
+			Vector2 toHome = homePos - torusPos;
+			float distance = toHome.magnitude;
+
+			// Raycast from torus to home to check visibility
+			RaycastHit2D hit = Physics2D.Raycast(torusPos, toHome.normalized, distance, homeMask);
+
+			if (hit.collider != null && hit.collider.transform == home.transform)
 			{
-				// Compute direction and distance from torus to home
-				Vector2 homePos = (Vector2)home.transform.position;
-				Vector2 torusPos = targetTorus.currentPosition;
-				Vector2 toHome = homePos - torusPos;
-				float distance = toHome.magnitude;
+				// Line of sight is clear and home is in range
+				directionToNest = toHome.normalized;
 
-				// Raycast from torus to home to check visibility
-				RaycastHit2D hit = Physics2D.Raycast(torusPos, toHome.normalized, distance, homeMask);
-
-				if (hit.collider != null && hit.collider.transform == home.transform)
-				{
-					// Line of sight is clear and home is in range
-					directionToNest = toHome.normalized;
-
-					// Apply force toward home
-					targetTorus.ApplyForce(directionToNest * informedForce);
-				}
+				// Apply force toward home
+				targetTorus.ApplyForce(directionToNest * informedForce);
 			}
+		}
 	}
 
 	void MoveRelativeToTorus()
