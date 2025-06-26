@@ -10,11 +10,11 @@ public class LoadedParameters
 {
 	public int antCount = 100;
 	public float kc = 0.2f;              // Switching rate coefficient (basal decision-making rate)
-	public float simulationSpeed = 1f; // Speed of the simulation
+	public float simulationSpeed = 40f; // Speed of the simulation
 	public float informedTime = 0.5f; // Time spent in informed state
 	public float stopAfterSeconds = 0f; // Time after which the simulation stops, 0 means no stop
 
-	public int usePheromoneSteering = 0 ; // Whether to use pheromone steering 0 = non 1=...
+	public int usePheromoneSteering = 3 ; // Whether to use pheromone steering 0 = non 1=...
 	public string outputFile = ""; // File to write output to
 
 	public LoadedParameters()
