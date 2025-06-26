@@ -22,7 +22,6 @@ MonoBehaviour:
   collisionRadius: 0.15
   timeBetweenRandomSteers: 0.5
   dstBetweenMarkers: 0.7
-  pheromoneEvaporateTime: 45
   pheromoneRunOutTime: 100
   pheromoneWeight: 1
   perceptionRadius: 0.1
@@ -35,3 +34,11 @@ MonoBehaviour:
   lifetime: 150
   useDeath: 0
   antForce: 2
+  loadedParameters:
+    antCount: 100
+    kc: 0.2
+    simulationSpeed: 5
+    informedTime: 0.5
+    stopAfterSeconds: 0
+    usePheromoneSteering: 0
+  pheromoneSenseRadius: 2

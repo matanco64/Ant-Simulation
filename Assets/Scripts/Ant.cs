@@ -86,6 +86,7 @@ public class Ant : MonoBehaviour
 	float attachmentRate;              // K_att in the paper - rate at which ants attach to cargo
 	float detachmentRate;              // K_det in the paper - rate at which ants detach from cargo
 	float barefrictionForce;           // F^0_kin in the paper - base friction before lifter reduction
+	bool didAttachTorusonce = false; // Whether the ant has attached to the torus
 
 	// Improved model variables
 	float effectiveFind;               // Effective alignment sensitivity (adjusted for group size)
@@ -517,7 +518,7 @@ public class Ant : MonoBehaviour
 						ApplyGradientGaussianSteering(colony.homeMarkers);
 						break;
 					case 4:
-						Debug.Log("Applying Inverse Square Steering");
+						Debug.Log("Applybing Inverse Square Steering");
 						ApplyInverseSquareSteering(colony.homeMarkers);
 						break;
 					case 5:
@@ -838,6 +839,7 @@ public class Ant : MonoBehaviour
 				{
 					// Large food (torus) requires collaboration according to model
 					ChangeState(State.Informed);
+					didAttachTorusonce = true;
 					DetachAssessmentTime = Time.time + GenerateRandomDetachmentTime();
 					SetColor(Color.yellow);
 					nOfStates["informed"]++;
@@ -1108,24 +1110,19 @@ public class Ant : MonoBehaviour
 
 	void HandlePheromonePlacement()
 	{
-		if (Vector2.Distance(transform.position, lastPheromonePos) > settings.dstBetweenMarkers)
+		if (Vector2.Distance(transform.position, lastPheromonePos) < settings.dstBetweenMarkers)
 		{
-			if (currentState == State.SearchingForFood && settings.useHomeMarkers) // && (Time.time - leftHomeTime) < settings.pheromoneRunOutTime)
-			{
-				float t = 1 - (Time.time - leftHomeTime) / settings.pheromoneRunOutTime;
-				t = Mathf.Lerp(0.5f, 1, t);
-				colony.homeMarkers.Add(transform.position, t);
-				lastPheromonePos = transform.position + (Vector3)Random.insideUnitCircle * settings.dstBetweenMarkers * 0.2f;
-			}
-			else if ((currentState != State.SearchingForFood)
-			 && settings.useFoodMarkers) // && (Time.time - leftFoodTime) < settings.pheromoneRunOutTime)
-			{
-				float t = 1 - (Time.time - leftFoodTime) / settings.pheromoneRunOutTime;
-				t = Mathf.Lerp(0.5f, 1, t);
-				colony.foodMarkers.Add(transform.position, t);
-				lastPheromonePos = transform.position + (Vector3)Random.insideUnitCircle * settings.dstBetweenMarkers * 0.2f;
-			}
+			return; // Don't place a new marker if too close to the last one
 		}
+		if (currentState == State.Informed || currentState == State.Pulling || currentState == State.Lifting || didAttachTorusonce)
+		{
+			return; // Don't place markers in these states
+		}
+
+		float t = 1 - (Time.time - leftHomeTime) / settings.pheromoneRunOutTime;
+		t = Mathf.Lerp(0.5f, 1, t);
+		colony.homeMarkers.Add(transform.position, t);
+		lastPheromonePos = transform.position + (Vector3)Random.insideUnitCircle * settings.dstBetweenMarkers * 0.2f;
 	}
 
 	void HandlePheromoneSteering()

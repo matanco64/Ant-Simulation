@@ -190,10 +190,9 @@ public class Torus : MonoBehaviour
         float moveDist = Vector2.Distance(currentPosition, nextPosition);
 
         // Handle multiple collisions by iterating up to a max number of attempts
-        int maxIterations = 3;
+        int maxIterations = 7;
         int iteration = 0;
         bool collided = false;
-
         while (iteration < maxIterations) //moveDist > 0.0001f)
         {
             RaycastHit2D hit = Physics2D.CircleCast(currentPosition, radius * safeDistanceMultiplier, moveDir, moveDist, LayerMask.GetMask("Wall"));

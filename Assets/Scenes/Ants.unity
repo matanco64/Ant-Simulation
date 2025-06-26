@@ -10687,7 +10687,7 @@ MonoBehaviour:
   brushStrength: 5
   brush: {fileID: 825386571}
   brushRadiusInputSensitivity: 0.8
-  loadFile: {fileID: 4900000, guid: ae9f41b5c34452048a3104a2644c7194, type: 3}
+  loadFile: {fileID: 4900000, guid: 66db489a852c6284bb08ceca8b1c7408, type: 3}
   loadOnStart: 1
 --- !u!4 &1664453873
 Transform:
