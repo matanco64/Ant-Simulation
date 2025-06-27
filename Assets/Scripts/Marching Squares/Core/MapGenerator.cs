@@ -77,7 +77,7 @@ public class MapGenerator : MonoBehaviour
 		Debug.Log("Saving map to file");
 		SaveData saveData = new SaveData(fullMap);
 		string saveString = JsonUtility.ToJson(saveData);
-		StreamWriter writer = new StreamWriter("./Assets/SavedMap/Map4.txt");
+		StreamWriter writer = new StreamWriter("./Assets/SavedMap/Maze.txt");
 		writer.Write(saveString);
 		writer.Close();
 		Debug.Log("Map saved to file");
