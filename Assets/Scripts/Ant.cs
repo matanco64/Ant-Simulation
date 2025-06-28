@@ -226,7 +226,7 @@ public class Ant : MonoBehaviour
 
 	public void updateDuelMap()
 	{
-		dualMap.Deposit(transform.position, 1.0f, PheromoneType.Positive);
+		//dualMap.Deposit(transform.position, 1.0f, PheromoneType.Positive);
 	}
 
 
@@ -257,7 +257,7 @@ public class Ant : MonoBehaviour
 	public void ApplyInCircleSteering() //1
 	{
 		// Debug.Log("Handling pheromone steering back home");
-		float senseRadius = settings.pheromoneSenseRadius;
+		float senseRadius = settings.pheromoneSenseRadius * 2;
 		int numPheromones = colony.homeMarkers.GetAllInRadius(pheromoneEntries, currentPosition, senseRadius);
 
 		Vector2 totalDirection = Vector2.zero;
@@ -288,7 +288,7 @@ public class Ant : MonoBehaviour
 	public void ApplyGradientPartialSteering(PerceptionMap markerMap) //2
 	{
 		float h = 0.1f; // Small offset for finite difference
-		float radius = settings.pheromoneSenseRadius * 0.5f; // Sensing radius for local sum
+		float radius = settings.loadedParameters.pheromoneRadius;
 
 		// Helper to sum pheromone strengths at a position
 		float SamplePheromone(Vector2 pos)
@@ -326,11 +326,11 @@ public class Ant : MonoBehaviour
 
 	public void ApplyGradientGaussianSteering(PerceptionMap markerMap) //3
 	{
-		float sigma = settings.pheromoneSenseRadius * 0.5f; // Standard deviation for Gaussian
+		float sigma = settings.pheromoneSenseRadius; // Standard deviation for Gaussian
 		float twoSigmaSq = 2 * sigma * sigma;
 		float epsilon = 1e-6f;
 
-		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, settings.pheromoneSenseRadius);
+		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, settings.loadedParameters.pheromoneRadius);
 
 		Vector2 grad = Vector2.zero;
 		float totalWeight = 0f;
@@ -362,7 +362,7 @@ public class Ant : MonoBehaviour
 
 	public void ApplyInverseSquareSteering(PerceptionMap markerMap) //4
 	{
-		float radius = settings.pheromoneSenseRadius;
+		float radius = settings.loadedParameters.pheromoneRadius;
 		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, radius);
 
 		Vector2 totalForce = Vector2.zero;
@@ -396,8 +396,8 @@ public class Ant : MonoBehaviour
 
 	public void ApplyExponentialSteering(PerceptionMap markerMap) //5cvbn 
 	{
-		float radius = settings.pheromoneSenseRadius;
-		float decayLength = settings.pheromoneSenseRadius * 0.5f; // Lambda: controls sharpness of decay
+		float radius = settings.loadedParameters.pheromoneRadius;
+		float decayLength = settings.pheromoneSenseRadius; // Lambda: controls sharpness of decay
 		float now = Time.time;
 
 		int count = markerMap.GetAllInRadius(pheromoneEntries, currentPosition, radius);

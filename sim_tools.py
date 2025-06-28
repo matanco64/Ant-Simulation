@@ -22,12 +22,13 @@ SIMULATION_FILES_DIRECTORY = "SimulationFiles"
 @dataclass
 class SimulationParameters:
     antCount: int = 200
-    simulationSpeed: float = 40.0
-    infromedTime: float = 15.0
+    simulationSpeed: float = 35.0
+    infromedTime: float = 20.0
     stopAfterSeconds: int = 1000
     kc: float = 0.3
     usePheromoneSteering: int = 0
     HomeSenseRadius: int = 0
+    pheromoneRadius: int = 10
     outputFile: str = SIMULATION_RESULTS_FILE
 
 
